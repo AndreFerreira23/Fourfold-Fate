@@ -13,8 +13,14 @@ git add .
 # Step 4: Commit
 git commit -m "Initial setup: Core systems, UI, and scene setup"
 
-# Step 5: Add remote (create repo on GitHub first at https://github.com/new)
-git remote add origin https://github.com/arset/Fourfold-Fate.git
+# Step 5: Add remote 
+# Repository already exists at: https://github.com/AndreFerreira23/Fourfold-Fate
+# Run this command:
+git remote add origin https://github.com/AndreFerreira23/Fourfold-Fate.git
+
+# If you get "remote already exists" error, remove it first:
+# git remote remove origin
+# Then run the add command again
 
 # Step 6: Push to GitHub
 git branch -M main
