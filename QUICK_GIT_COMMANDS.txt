@@ -1,0 +1,30 @@
+# Quick Git Commands for arset
+# Copy and paste these commands one by one in PowerShell or Command Prompt
+
+# Step 1: Navigate to project
+cd "C:\Users\arset\Fourfold Fate"
+
+# Step 2: Initialize git (if not already done)
+git init
+
+# Step 3: Add all files
+git add .
+
+# Step 4: Commit
+git commit -m "Initial setup: Core systems, UI, and scene setup"
+
+# Step 5: Add remote (create repo on GitHub first at https://github.com/new)
+git remote add origin https://github.com/arset/Fourfold-Fate.git
+
+# Step 6: Push to GitHub
+git branch -M main
+git push -u origin main
+
+# IMPORTANT: Before running Step 5, create the repository on GitHub:
+# 1. Go to https://github.com/new
+# 2. Repository name: Fourfold-Fate
+# 3. Choose Private or Public
+# 4. DON'T check "Initialize with README"
+# 5. Click "Create repository"
+# 6. Then run Step 5 and 6 above
+
