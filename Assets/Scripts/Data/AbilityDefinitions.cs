@@ -1,4 +1,5 @@
 using FourfoldFate.Core;
+using System.Collections.Generic;
 
 namespace FourfoldFate.Data
 {
@@ -9,146 +10,163 @@ namespace FourfoldFate.Data
     public static class AbilityDefinitions
     {
         /// <summary>
-        /// Get ability configuration by ID. Add new abilities here.
+        /// Get all ability configurations.
         /// </summary>
-        public static AbilityDataConfig GetAbilityConfig(string abilityId)
+        public static List<AbilityDataConfig> GetAllAbilities()
         {
-            return abilityId switch
+            return new List<AbilityDataConfig>
             {
-                // TANK ABILITIES - Balanced from balance agent
-                "shield_bash" => new AbilityDataConfig
+                // TANK ABILITIES
+                new AbilityDataConfig
                 {
+                    abilityId = "shield_bash",
                     abilityName = "Shield Bash",
-                    description = "Moderate physical damage. The Method of Keeping demands sacrifice.",
+                    description = "Bash the enemy with your shield, dealing damage and reducing their attack speed.",
                     abilityType = AbilityType.Damage,
-                    damage = 25f,  // Balanced: 25 damage
-                    manaCost = 30f,  // Balanced: 30 mana
-                    cooldown = 6f,  // Balanced: 6 seconds
-                    range = 1.2f,
-                    targetType = TargetType.Enemy
+                    manaCost = 20f,
+                    cooldown = 3f,
+                    damage = 25f,
+                    healAmount = 0f,
+                    range = 1.5f
                 },
-
-                "taunt" => new AbilityDataConfig
+                new AbilityDataConfig
                 {
-                    abilityName = "Taunt",
-                    description = "Draws enemy attention. The Method of Keeping demands sacrifice.",
-                    abilityType = AbilityType.Utility,
-                    manaCost = 30f,
-                    cooldown = 8f,
-                    range = 5f,
-                    targetType = TargetType.AllEnemies
-                },
-
-                "guard_wall" => new AbilityDataConfig
-                {
-                    abilityName = "Guard Wall",
-                    description = "Spends Guard to heavily reduce incoming damage.",
+                    abilityId = "fortify",
+                    abilityName = "Fortify",
+                    description = "Increase your armor and magic resist for the duration of combat.",
                     abilityType = AbilityType.Buff,
-                    manaCost = 0f,
-                    cooldown = 12f,
-                    range = 0f,
-                    targetType = TargetType.Self
+                    manaCost = 30f,
+                    cooldown = 10f,
+                    damage = 0f,
+                    healAmount = 0f,
+                    range = 0f
+                },
+                new AbilityDataConfig
+                {
+                    abilityId = "taunt",
+                    abilityName = "Taunt",
+                    description = "Force enemies to target you, protecting your allies.",
+                    abilityType = AbilityType.Utility,
+                    manaCost = 15f,
+                    cooldown = 5f,
+                    damage = 0f,
+                    healAmount = 0f,
+                    range = 5f
                 },
 
                 // FIGHTER ABILITIES
-                "whirlwind" => new AbilityDataConfig
+                new AbilityDataConfig
                 {
-                    abilityName = "Whirlwind Strike",
-                    description = "A spinning attack that maintains Momentum.",
+                    abilityId = "cleave",
+                    abilityName = "Cleave",
+                    description = "Strike multiple enemies in front of you.",
                     abilityType = AbilityType.Damage,
-                    damage = 30f,
                     manaCost = 25f,
-                    cooldown = 5f,
-                    range = 2f,
-                    targetType = TargetType.AllEnemies
+                    cooldown = 4f,
+                    damage = 30f,
+                    healAmount = 0f,
+                    range = 2f
                 },
-
-                "battle_cry" => new AbilityDataConfig
+                new AbilityDataConfig
                 {
+                    abilityId = "battle_cry",
                     abilityName = "Battle Cry",
-                    description = "Buffs damage for all allies. The Method of Motion inspires the Circle.",
-                    abilityType = AbilityType.Buff,
-                    manaCost = 50f,  // Balanced: 50 mana
-                    cooldown = 12f,  // Balanced: 12 seconds
-                    duration = 5f,  // Balanced: 5 second duration
-                    range = 0f,
-                    targetType = TargetType.AllAllies
-                },
-
-                "momentum_rush" => new AbilityDataConfig
-                {
-                    abilityName = "Momentum Rush",
-                    description = "Gains maximum Momentum instantly.",
+                    description = "Rally your allies, increasing their attack damage.",
                     abilityType = AbilityType.Buff,
                     manaCost = 30f,
-                    cooldown = 15f,
-                    range = 0f,
-                    targetType = TargetType.Self
+                    cooldown = 8f,
+                    damage = 0f,
+                    healAmount = 0f,
+                    range = 10f
                 },
-
-                // MAGE ABILITIES - Balanced from balance agent
-                "fireball" => new AbilityDataConfig
+                new AbilityDataConfig
                 {
-                    abilityName = "Fireball",
-                    description = "High burst damage, intended for Mages. Each cast increases Mana Surge.",
+                    abilityId = "whirlwind",
+                    abilityName = "Whirlwind",
+                    description = "Spin and attack all nearby enemies.",
                     abilityType = AbilityType.Damage,
-                    damage = 45f,  // Balanced: 45 damage
-                    manaCost = 40f,  // Balanced: 40 mana
-                    cooldown = 4f,  // Balanced: 4 seconds
-                    range = 4.5f,
-                    targetType = TargetType.Enemy
-                },
-
-                "arcane_bolt" => new AbilityDataConfig
-                {
-                    abilityName = "Arcane Bolt",
-                    description = "A bolt of pure arcane energy. Risk Overload for greater power.",
-                    abilityType = AbilityType.Damage,
-                    damage = 50f,
                     manaCost = 40f,
-                    cooldown = 4f,
-                    range = 4.5f,
-                    targetType = TargetType.Enemy
+                    cooldown = 6f,
+                    damage = 20f,
+                    healAmount = 0f,
+                    range = 2.5f
                 },
 
-                "heal" => new AbilityDataConfig
+                // MAGE ABILITIES
+                new AbilityDataConfig
                 {
-                    abilityName = "Heal",
-                    description = "Restores health to an ally.",
-                    abilityType = AbilityType.Heal,
-                    healAmount = 40f,
-                    manaCost = 20f,
-                    cooldown = 6f,
-                    range = 4f,
-                    targetType = TargetType.Ally
+                    abilityId = "fireball",
+                    abilityName = "Fireball",
+                    description = "Hurl a fireball at an enemy, dealing magic damage.",
+                    abilityType = AbilityType.Damage,
+                    manaCost = 30f,
+                    cooldown = 2f,
+                    damage = 40f,
+                    healAmount = 0f,
+                    range = 5f
+                },
+                new AbilityDataConfig
+                {
+                    abilityId = "arcane_bolt",
+                    abilityName = "Arcane Bolt",
+                    description = "Launch a quick bolt of arcane energy.",
+                    abilityType = AbilityType.Damage,
+                    manaCost = 15f,
+                    cooldown = 1f,
+                    damage = 20f,
+                    healAmount = 0f,
+                    range = 5f
+                },
+                new AbilityDataConfig
+                {
+                    abilityId = "mana_surge",
+                    abilityName = "Mana Surge",
+                    description = "Spend extra mana to deal massive damage, but risk overload.",
+                    abilityType = AbilityType.Damage,
+                    manaCost = 60f,
+                    cooldown = 5f,
+                    damage = 80f,
+                    healAmount = 0f,
+                    range = 5f
                 },
 
                 // ASSASSIN ABILITIES
-                "backstab" => new AbilityDataConfig
+                new AbilityDataConfig
                 {
+                    abilityId = "backstab",
                     abilityName = "Backstab",
-                    description = "Deals massive damage to low-health enemies. Opportunity strikes.",
+                    description = "Strike from behind for critical damage.",
                     abilityType = AbilityType.Damage,
-                    damage = 40f,
-                    manaCost = 20f,
-                    cooldown = 6f,
-                    range = 1.5f,
-                    targetType = TargetType.Enemy
+                    manaCost = 25f,
+                    cooldown = 3f,
+                    damage = 50f,  // High damage for opportunity
+                    healAmount = 0f,
+                    range = 1.5f
                 },
-
-                "poison_blade" => new AbilityDataConfig
+                new AbilityDataConfig
                 {
-                    abilityName = "Poison Blade",
-                    description = "Applies poison to target. Chains kills refresh cooldowns.",
+                    abilityId = "poison_strike",
+                    abilityName = "Poison Strike",
+                    description = "Apply a poison that deals damage over time.",
                     abilityType = AbilityType.Debuff,
-                    damage = 15f,
-                    manaCost = 15f,
-                    cooldown = 5f,
-                    range = 1.2f,
-                    targetType = TargetType.Enemy
+                    manaCost = 20f,
+                    cooldown = 4f,
+                    damage = 10f,  // Initial damage + DoT
+                    healAmount = 0f,
+                    range = 1.5f
                 },
-
-                _ => null
+                new AbilityDataConfig
+                {
+                    abilityId = "shadow_step",
+                    abilityName = "Shadow Step",
+                    description = "Teleport behind an enemy and strike.",
+                    abilityType = AbilityType.Damage,
+                    manaCost = 30f,
+                    cooldown = 5f,
+                    damage = 35f,
+                    healAmount = 0f,
+                    range = 8f
+                }
             };
         }
     }

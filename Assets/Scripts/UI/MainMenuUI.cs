@@ -1,40 +1,25 @@
 using UnityEngine;
 using UnityEngine.UI;
-using FourfoldFate.Roguelike;
 
 namespace FourfoldFate.UI
 {
     /// <summary>
-    /// Main menu UI with lore-integrated text.
+    /// Main menu UI screen.
     /// </summary>
     public class MainMenuUI : BaseUI
     {
         [Header("UI Elements")]
-        [SerializeField] private Text titleText;
-        [SerializeField] private Text taglineText;
-        [SerializeField] private Text loreText;
-        [SerializeField] private Button startRunButton;
-        [SerializeField] private Button continueRunButton;
-        [SerializeField] private Button metaProgressionButton;
-        [SerializeField] private Button settingsButton;
-        [SerializeField] private Button quitButton;
+        public Text titleText;
+        public Text taglineText;
+        public Text introLoreText;
+        public Button startRunButton;
+        public Button continueRunButton;
+        public Button metaProgressionButton;
+        public Button settingsButton;
+        public Button quitButton;
 
-        [Header("Lore Text")]
-        [SerializeField] private string titleLore = "Fourfold Fate";
-        [SerializeField] private string taglineLore = "Four seats. One climb. A hundred chances to become worth the summit.";
-        [SerializeField] private string introLore = "The Hall of Echoes is quiet until you arrive. A circle waits with four empty seats and one lit candle. You take the first seat. The Trials begin to write your name.";
-
-        private RunManager runManager;
-
-        protected override void Awake()
+        private void Start()
         {
-            base.Awake();
-            runManager = FindObjectOfType<RunManager>();
-        }
-
-        protected override void OnEnable()
-        {
-            base.OnEnable();
             SetupUI();
             SetupButtons();
         }
@@ -43,88 +28,89 @@ namespace FourfoldFate.UI
         {
             if (titleText != null)
             {
-                titleText.text = titleLore;
-                // Ensure overflow settings are correct
-                titleText.horizontalOverflow = HorizontalWrapMode.Overflow;
-                titleText.verticalOverflow = VerticalWrapMode.Overflow;
-                // Force text to update
-                titleText.SetAllDirty();
+                titleText.text = "Fourfold Fate";
             }
 
             if (taglineText != null)
             {
-                taglineText.text = taglineLore;
-                taglineText.horizontalOverflow = HorizontalWrapMode.Overflow;
-                taglineText.verticalOverflow = VerticalWrapMode.Overflow;
+                taglineText.text = "A Roguelike Adventure";
             }
 
-            if (loreText != null)
+            if (introLoreText != null)
             {
-                loreText.text = introLore;
-                loreText.horizontalOverflow = HorizontalWrapMode.Overflow;
-                loreText.verticalOverflow = VerticalWrapMode.Overflow;
+                introLoreText.text = "Welcome to the March...";
             }
         }
 
         private void SetupButtons()
         {
             if (startRunButton != null)
-                startRunButton.onClick.AddListener(OnStartRunClicked);
+            {
+                startRunButton.onClick.AddListener(OnStartRun);
+            }
 
             if (continueRunButton != null)
             {
-                continueRunButton.onClick.AddListener(OnContinueRunClicked);
-                // Only show if there's an active run
-                continueRunButton.gameObject.SetActive(runManager != null && runManager.IsRunActive);
+                continueRunButton.onClick.AddListener(OnContinueRun);
             }
-
-            if (metaProgressionButton != null)
-                metaProgressionButton.onClick.AddListener(OnMetaProgressionClicked);
-
-            if (settingsButton != null)
-                settingsButton.onClick.AddListener(OnSettingsClicked);
 
             if (quitButton != null)
-                quitButton.onClick.AddListener(OnQuitClicked);
-        }
-
-        private void OnStartRunClicked()
-        {
-            // This will be handled by GameManager
-            OnStartRun?.Invoke();
-        }
-
-        private void OnContinueRunClicked()
-        {
-            if (runManager != null && runManager.IsRunActive)
             {
-                OnContinueRun?.Invoke();
+                quitButton.onClick.AddListener(OnQuit);
             }
         }
 
-        private void OnMetaProgressionClicked()
+        public void OnStartRun()  // Changed to public so it can be called from button
         {
-            OnMetaProgression?.Invoke();
+            Debug.Log("=== Start Run button clicked ===");
+            
+            // Try to find RunManager if Instance is null
+            if (Roguelike.RunManager.Instance == null)
+            {
+                Debug.LogWarning("RunManager.Instance is null, trying to find it...");
+                Roguelike.RunManager runManager = FindFirstObjectByType<Roguelike.RunManager>();
+                if (runManager == null)
+                {
+                    Debug.LogError("❌ RunManager not found in scene! Make sure AutoSceneSetup ran or create RunManager manually.");
+                    return;
+                }
+                Debug.Log("✅ Found RunManager in scene (but Instance wasn't set - this is a timing issue)");
+            }
+            Debug.Log("✅ RunManager found");
+
+            if (UIManager.Instance == null)
+            {
+                Debug.LogError("❌ UIManager.Instance is null! Make sure UIManager exists in scene.");
+                return;
+            }
+            Debug.Log("✅ UIManager found");
+
+            if (UIManager.Instance.battleArenaUI == null)
+            {
+                Debug.LogError("❌ BattleArenaUI is not assigned to UIManager!");
+                return;
+            }
+            Debug.Log("✅ BattleArenaUI found");
+
+            Debug.Log("Calling RunManager.StartNewRun()...");
+            Roguelike.RunManager.Instance.StartNewRun();
+            
+            Debug.Log("Calling UIManager.ShowBattleArena()...");
+            UIManager.Instance.ShowBattleArena();
+            
+            Debug.Log("✅ Run started, switched to Battle Arena");
         }
 
-        private void OnSettingsClicked()
+        private void OnContinueRun()
         {
-            OnSettings?.Invoke();
+            // Continue existing run
+            UIManager.Instance.ShowBattleArena();
         }
 
-        private void OnQuitClicked()
+        private void OnQuit()
         {
             Application.Quit();
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#endif
         }
-
-        // Events
-        public System.Action OnStartRun;
-        public System.Action OnContinueRun;
-        public System.Action OnMetaProgression;
-        public System.Action OnSettings;
     }
 }
 

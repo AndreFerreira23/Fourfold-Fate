@@ -1,45 +1,38 @@
 using System.Collections.Generic;
-using UnityEngine;
+using System.Linq;
 using FourfoldFate.Core;
-using FourfoldFate.Relics;
 using FourfoldFate.Roguelike;
+using FourfoldFate.Relics;
+using UnityEngine;
 
 namespace FourfoldFate.Data
 {
     /// <summary>
-    /// Central manager for all game data defined in code.
-    /// All units, abilities, relics, and encounters are defined here.
+    /// Central manager for all game data (units, abilities, relics, encounters).
+    /// All data is defined in code, not ScriptableObjects.
     /// </summary>
     public class GameDataManager : MonoBehaviour
     {
-        private static GameDataManager instance;
-        public static GameDataManager Instance
-        {
-            get
-            {
-                if (instance == null)
-                    instance = FindObjectOfType<GameDataManager>();
-                return instance;
-            }
-        }
+        [Header("Data Dictionaries")]
+        private Dictionary<string, UnitData> units = new Dictionary<string, UnitData>();
+        private Dictionary<string, AbilityData> abilities = new Dictionary<string, AbilityData>();
+        private Dictionary<string, Relic> relics = new Dictionary<string, Relic>();
+        private Dictionary<string, EncounterData> encounters = new Dictionary<string, EncounterData>();
 
-        [Header("Data Collections")]
-        private Dictionary<string, UnitData> unitDatabase = new Dictionary<string, UnitData>();
-        private Dictionary<string, AbilityData> abilityDatabase = new Dictionary<string, AbilityData>();
-        private Dictionary<string, Relic> relicDatabase = new Dictionary<string, Relic>();
-        private Dictionary<string, EncounterData> encounterDatabase = new Dictionary<string, EncounterData>();
+        public static GameDataManager Instance { get; private set; }
 
         private void Awake()
         {
-            if (instance == null)
+            if (Instance == null)
             {
-                instance = this;
-                // Only use DontDestroyOnLoad if this is a root GameObject
+                Instance = this;
+                LoadAllData();
+                
+                // Only call DontDestroyOnLoad if this is a root GameObject
                 if (transform.parent == null)
                 {
                     DontDestroyOnLoad(gameObject);
                 }
-                InitializeAllData();
             }
             else
             {
@@ -47,354 +40,220 @@ namespace FourfoldFate.Data
             }
         }
 
-        private void InitializeAllData()
+        /// <summary>
+        /// Load all game data from definition classes.
+        /// </summary>
+        private void LoadAllData()
         {
-            InitializeUnits();
-            InitializeAbilities();
-            InitializeRelics();
-            InitializeEncounters();
+            LoadUnits();
+            LoadAbilities();
+            LoadRelics();
+            LoadEncounters();
         }
 
-        #region Unit Data Initialization
-
-        private void InitializeUnits()
+        /// <summary>
+        /// Load all unit definitions.
+        /// </summary>
+        private void LoadUnits()
         {
-            // Load all player units from UnitDefinitions
-            // Add new units by adding them to UnitDefinitions.cs
-            string[] unitIds = { "guardian_shield", "earthwarden", "blade_dancer", "flame_striker", 
-                                "rune_scribe", "stormcaller", "shadow_blade", "venom_weaver",
-                                "ironclad_guardian", "shadowblade", "arcane_weaver" };
-            
-            foreach (string unitId in unitIds)
+            // Load player units from UnitDefinitions
+            if (UnitDefinitions.GetAllPlayerUnits() != null)
             {
-                var config = UnitDefinitions.GetUnitConfig(unitId);
-                if (config != null)
+                foreach (var config in UnitDefinitions.GetAllPlayerUnits())
                 {
-                    CreateUnit(unitId, config);
+                    UnitData data = ConvertConfigToData(config);
+                    units[data.unitId] = data;
                 }
             }
 
-            // Load all enemies from EnemyDefinitions
-            InitializeEnemies();
-        }
-
-        private void InitializeEnemies()
-        {
-            // Common enemies (Level 1-30)
-            string[] commonEnemyIds = {
+            // Load enemy units from EnemyDefinitions
+            // We'll need to get all enemy IDs - for now, hardcode common ones
+            string[] enemyIds = {
                 "briar_cairn_footpad", "ash_tithe_marauder", "thornworn_bulwark", "chapel_husk",
                 "pollen_skulk", "lantern_gnaw_wisp", "hex_crow", "bog_needle_leech",
-                "storm_split_slinker", "rustbound_warder"
-            };
-
-            // Uncommon enemies (Level 10-60)
-            string[] uncommonEnemyIds = {
-                "cinder_scribe", "briar_matron", "gloam_confessor", "anvil_woken",
-                "tempest_chorister", "oath_less_duellist"
-            };
-
-            // Elite enemies (Level 20-90)
-            string[] eliteEnemyIds = {
+                "storm_split_slinker", "rustbound_warder", "cinder_scribe", "briar_matron",
+                "gloam_confessor", "anvil_woken", "tempest_chorister", "oath_less_duellist",
                 "reliquary_breaker", "sanctum_pyrebrand", "root_chain_warden", "mirror_hex_adept"
             };
 
-            // Create all enemies
-            foreach (string enemyId in commonEnemyIds)
+            foreach (var enemyId in enemyIds)
             {
                 var config = EnemyDefinitions.GetEnemyConfig(enemyId);
                 if (config != null)
                 {
-                    CreateUnit(enemyId, config);
+                    UnitData data = ConvertConfigToData(config, enemyId);
+                    units[data.unitId] = data;
                 }
             }
+        }
 
-            foreach (string enemyId in uncommonEnemyIds)
+        /// <summary>
+        /// Load all ability definitions.
+        /// </summary>
+        private void LoadAbilities()
+        {
+            if (AbilityDefinitions.GetAllAbilities() != null)
             {
-                var config = EnemyDefinitions.GetEnemyConfig(enemyId);
-                if (config != null)
+                foreach (var config in AbilityDefinitions.GetAllAbilities())
                 {
-                    CreateUnit(enemyId, config);
+                    AbilityData data = ConvertConfigToData(config);
+                    abilities[data.abilityId] = data;
                 }
             }
+        }
 
-            foreach (string enemyId in eliteEnemyIds)
+        /// <summary>
+        /// Load all relic definitions.
+        /// </summary>
+        private void LoadRelics()
+        {
+            // Relics will be loaded from RelicDefinitions if needed
+        }
+
+        /// <summary>
+        /// Load all encounter definitions.
+        /// </summary>
+        private void LoadEncounters()
+        {
+            if (EncounterDefinitions.GetAllEncounters() != null)
             {
-                var config = EnemyDefinitions.GetEnemyConfig(enemyId);
-                if (config != null)
+                foreach (var config in EncounterDefinitions.GetAllEncounters())
                 {
-                    CreateUnit(enemyId, config);
+                    EncounterData data = ConvertConfigToEncounterData(config);
+                    encounters[data.encounterId] = data;
                 }
             }
         }
 
-        private void CreateUnit(string id, UnitDataConfig config)
+        /// <summary>
+        /// Convert UnitDataConfig to UnitData.
+        /// </summary>
+        private UnitData ConvertConfigToData(UnitDataConfig config, string unitId = null)
         {
-            UnitData unitData = ScriptableObject.CreateInstance<UnitData>();
-            unitData.unitName = config.unitName;
-            unitData.description = config.description;
-            unitData.MaxHealth = config.maxHealth;
-            unitData.MaxMana = config.maxMana;
-            unitData.AttackDamage = config.attackDamage;
-            unitData.AttackSpeed = config.attackSpeed;
-            unitData.Armor = config.armor;
-            unitData.MagicResist = config.magicResist;
-            unitData.MovementSpeed = config.movementSpeed;
-            unitData.AttackRange = config.attackRange;
-            unitData.archetypeType = config.archetypeType;
-            unitData.SynergyTag1 = config.synergyTag1;
-            unitData.SynergyTag2 = config.synergyTag2;
-            unitData.unitType = config.unitType;
-            unitData.unitRole = config.unitRole;
-            unitData.abilities = config.abilities;
-
-            unitDatabase[id] = unitData;
-        }
-
-        #endregion
-
-        #region Ability Data Initialization
-
-        private void InitializeAbilities()
-        {
-            // Load all abilities from AbilityDefinitions
-            // Add new abilities by adding them to AbilityDefinitions.cs
-            string[] abilityIds = { "shield_bash", "taunt", "guard_wall", "whirlwind", "battle_cry", "momentum_rush", 
-                                    "fireball", "arcane_bolt", "heal", "backstab", "poison_blade" };
-            
-            foreach (string abilityId in abilityIds)
+            // Generate ID from unit name if not provided
+            string id = unitId;
+            if (string.IsNullOrEmpty(id))
             {
-                var config = AbilityDefinitions.GetAbilityConfig(abilityId);
-                if (config != null)
-                {
-                    CreateAbility(abilityId, config);
-                }
+                id = config.unitName.ToLower()
+                    .Replace(" ", "_")
+                    .Replace("-", "_")
+                    .Replace("'", "");
             }
-        }
 
-        private void CreateAbility(string id, AbilityDataConfig config)
-        {
-            AbilityData abilityData = ScriptableObject.CreateInstance<AbilityData>();
-            abilityData.abilityName = config.abilityName;
-            abilityData.description = config.description;
-            abilityData.AbilityType = config.abilityType;
-            abilityData.ManaCost = config.manaCost;
-            abilityData.Cooldown = config.cooldown;
-            abilityData.Damage = config.damage;
-            abilityData.HealAmount = config.healAmount;
-            abilityData.Duration = config.duration;
-            abilityData.TargetType = config.targetType;
-            abilityData.Range = config.range;
-
-            abilityDatabase[id] = abilityData;
-        }
-
-        #endregion
-
-        #region Relic Data Initialization
-
-        private void InitializeRelics()
-        {
-            // Load all relics from RelicDefinitions
-            // Add new relics by adding them to RelicDefinitions.cs
-            string[] relicIds = { "arcane_battery", "tainted_dagger", "earth_totem", 
-                                 "blood_idol", "storm_core", "shadow_veil", "holy_sigil" };
-            
-            foreach (string relicId in relicIds)
+            return new UnitData
             {
-                var config = RelicDefinitions.GetRelicConfig(relicId);
-                if (config != null)
-                {
-                    CreateRelic(relicId, config);
-                }
-            }
-        }
-
-        private void CreateRelic(string id, RelicConfig config)
-        {
-            Relic relic = ScriptableObject.CreateInstance<Relic>();
-            relic.relicName = config.relicName;
-            relic.description = config.description;
-            relic.rarity = config.rarity;
-            relic.effects = config.effects;
-
-            relicDatabase[id] = relic;
-        }
-
-        #endregion
-
-        #region Encounter Data Initialization
-
-        private void InitializeEncounters()
-        {
-            // Load all encounters from EncounterDefinitions
-            string[] encounterIds = {
-                // Encounter packs
-                "hedge_ambush", "soot_tithe", "sunken_chapel", "bog_hunger", "reliquary_raid",
-                // Standard encounters
-                "encounter_1_5", "encounter_6_10", "encounter_11_20", "encounter_21_30",
-                // Minibosses
-                "first_knot", "tollgate_20", "myth_eater_30", "tollgate_40", "myth_eater_50",
-                "tollgate_60", "myth_eater_80", "tollgate_90", "sundered_arbiter"
+                unitId = id,
+                unitName = config.unitName,
+                description = config.description,
+                maxHealth = config.maxHealth,
+                maxMana = config.maxMana,
+                attackDamage = config.attackDamage,
+                attackSpeed = config.attackSpeed,
+                armor = config.armor,
+                magicResist = config.magicResist,
+                movementSpeed = config.movementSpeed,
+                attackRange = config.attackRange,
+                archetypeType = config.archetypeType,
+                synergyTag1 = config.synergyTag1,
+                synergyTag2 = config.synergyTag2,
+                unitType = config.unitType,
+                unitRole = config.unitRole
             };
+        }
 
-            foreach (string encounterId in encounterIds)
+        /// <summary>
+        /// Convert AbilityDataConfig to AbilityData.
+        /// </summary>
+        private AbilityData ConvertConfigToData(AbilityDataConfig config)
+        {
+            return new AbilityData
             {
-                var config = EncounterDefinitions.GetEncounterConfig(encounterId);
-                if (config != null)
+                abilityId = config.abilityId,
+                abilityName = config.abilityName,
+                description = config.description,
+                abilityType = config.abilityType,
+                manaCost = config.manaCost,
+                cooldown = config.cooldown,
+                damage = config.damage,
+                healAmount = config.healAmount,
+                range = config.range
+            };
+        }
+
+        /// <summary>
+        /// Convert EncounterDataConfig to EncounterData.
+        /// </summary>
+        private EncounterData ConvertConfigToEncounterData(EncounterDataConfig config)
+        {
+            List<UnitData> enemyUnits = new List<UnitData>();
+            if (config.enemyUnitIds != null)
+            {
+                foreach (var enemyId in config.enemyUnitIds)
                 {
-                    // Convert enemy IDs to UnitData references
-                    if (config.enemyUnitIds != null && config.enemyUnitIds.Count > 0)
+                    if (units.ContainsKey(enemyId))
                     {
-                        List<UnitData> enemyUnitsList = new List<UnitData>();
-                        foreach (string enemyId in config.enemyUnitIds)
-                        {
-                            UnitData enemyData = GetUnit(enemyId);
-                            if (enemyData != null)
-                            {
-                                enemyUnitsList.Add(enemyData);
-                            }
-                        }
-                        config.enemyUnits = enemyUnitsList.ToArray();
+                        enemyUnits.Add(units[enemyId]);
                     }
-
-                    CreateEncounter(encounterId, config);
                 }
             }
-        }
 
-        private void CreateEncounter(string id, EncounterDataConfig config)
-        {
-            EncounterData encounter = ScriptableObject.CreateInstance<EncounterData>();
-            encounter.encounterName = config.encounterName;
-            encounter.description = config.description;
-            encounter.minLevel = config.minLevel;
-            encounter.maxLevel = config.maxLevel;
-            encounter.isMiniboss = config.isMiniboss;
-            encounter.isMajorMiniboss = config.isMajorMiniboss;
-            encounter.isFinalBoss = config.isFinalBoss;
-            encounter.enemyUnits = new List<UnitData>(config.enemyUnits ?? new UnitData[0]);
-            encounter.goldReward = config.goldReward;
-
-            encounterDatabase[id] = encounter;
-        }
-
-        #endregion
-
-        #region Public Access Methods
-
-        public UnitData GetUnit(string id)
-        {
-            return unitDatabase.TryGetValue(id, out UnitData unit) ? unit : null;
-        }
-
-        public AbilityData GetAbility(string id)
-        {
-            return abilityDatabase.TryGetValue(id, out AbilityData ability) ? ability : null;
-        }
-
-        public Relic GetRelic(string id)
-        {
-            return relicDatabase.TryGetValue(id, out Relic relic) ? relic : null;
-        }
-
-        public EncounterData GetEncounter(string id)
-        {
-            return encounterDatabase.TryGetValue(id, out EncounterData encounter) ? encounter : null;
-        }
-
-        public List<UnitData> GetAllUnits()
-        {
-            return new List<UnitData>(unitDatabase.Values);
-        }
-
-        public List<Relic> GetAllRelics()
-        {
-            return new List<Relic>(relicDatabase.Values);
-        }
-
-        public List<EncounterData> GetEncountersForLevel(int level)
-        {
-            List<EncounterData> validEncounters = new List<EncounterData>();
-            foreach (var encounter in encounterDatabase.Values)
+            return new EncounterData
             {
-                if (encounter != null && level >= encounter.minLevel && level <= encounter.maxLevel)
+                encounterId = config.encounterId,
+                encounterName = config.encounterName,
+                description = config.description,
+                minLevel = config.minLevel,
+                maxLevel = config.maxLevel,
+                isMiniboss = config.isMiniboss,
+                isMajorMiniboss = config.isMajorMiniboss,
+                isFinalBoss = config.isFinalBoss,
+                enemyUnits = enemyUnits,
+                goldReward = config.goldReward
+            };
+        }
+
+        // Public getters
+        public UnitData GetUnit(string unitId) => units.ContainsKey(unitId) ? units[unitId] : null;
+        public AbilityData GetAbility(string abilityId) => abilities.ContainsKey(abilityId) ? abilities[abilityId] : null;
+        public Relic GetRelic(string relicId) => relics.ContainsKey(relicId) ? relics[relicId] : null;
+        public EncounterData GetEncounter(string encounterId) => encounters.ContainsKey(encounterId) ? encounters[encounterId] : null;
+        public List<EncounterData> GetAllEncounters() => encounters.Values.ToList();
+        
+        /// <summary>
+        /// Get all player units (non-enemy units).
+        /// </summary>
+        public List<UnitData> GetAllPlayerUnits()
+        {
+            List<UnitData> playerUnits = new List<UnitData>();
+            // Player units should have IDs like "the_warden", "the_blade", etc.
+            string[] playerIds = { "the_warden", "the_blade", "the_seer", "the_shadow" };
+            foreach (var id in playerIds)
+            {
+                if (units.ContainsKey(id))
                 {
-                    validEncounters.Add(encounter);
+                    playerUnits.Add(units[id]);
                 }
             }
-            return validEncounters;
+            return playerUnits;
         }
-
-        public List<EncounterData> GetAllEncounters()
-        {
-            return new List<EncounterData>(encounterDatabase.Values);
-        }
-
-        #endregion
     }
 
-    #region Configuration Classes
-
-    [System.Serializable]
-    public class UnitDataConfig
-    {
-        public string unitName;
-        public string description;
-        public float maxHealth = 100f;
-        public float maxMana = 50f;
-        public float attackDamage = 10f;
-        public float attackSpeed = 1f;
-        public float armor = 0f;
-        public float magicResist = 0f;
-        public float movementSpeed = 1f;
-        public float attackRange = 1.5f;
-        public Core.Archetypes.ArchetypeType archetypeType;
-        public SynergyTag synergyTag1 = SynergyTag.None;
-        public SynergyTag synergyTag2 = SynergyTag.None;
-        public UnitType unitType;
-        public UnitRole unitRole;
-        public AbilityData[] abilities;
-    }
-
-    [System.Serializable]
-    public class AbilityDataConfig
-    {
-        public string abilityName;
-        public string description;
-        public AbilityType abilityType;
-        public float manaCost = 20f;
-        public float cooldown = 5f;
-        public float damage = 0f;
-        public float healAmount = 0f;
-        public float duration = 0f;
-        public TargetType targetType;
-        public float range = 5f;
-    }
-
-    [System.Serializable]
-    public class RelicConfig
-    {
-        public string relicName;
-        public string description;
-        public Rarity rarity = Rarity.Common;
-        public RelicEffect[] effects;
-    }
-
+    /// <summary>
+    /// Configuration structure for encounter data (used in EncounterDefinitions).
+    /// </summary>
     [System.Serializable]
     public class EncounterDataConfig
     {
+        public string encounterId;
         public string encounterName;
         public string description;
-        public int minLevel = 1;
-        public int maxLevel = 100;
-        public bool isMiniboss = false;
-        public bool isMajorMiniboss = false;
-        public bool isFinalBoss = false;
-        public List<string> enemyUnitIds;  // Enemy IDs (converted to UnitData in GameDataManager)
-        public UnitData[] enemyUnits;  // Populated from enemyUnitIds
-        public int goldReward = 50;
+        public int minLevel;
+        public int maxLevel;
+        public bool isMiniboss;
+        public bool isMajorMiniboss;
+        public bool isFinalBoss;
+        public List<string> enemyUnitIds = new List<string>();
+        public int goldReward;
     }
-
-    #endregion
 }
 

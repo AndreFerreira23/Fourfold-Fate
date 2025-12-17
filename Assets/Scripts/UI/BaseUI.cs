@@ -4,60 +4,37 @@ namespace FourfoldFate.UI
 {
     /// <summary>
     /// Base class for all UI screens.
-    /// Provides common show/hide functionality.
     /// </summary>
     public abstract class BaseUI : MonoBehaviour
     {
-        [Header("UI References")]
-        [SerializeField] protected GameObject rootPanel;
-        [SerializeField] protected CanvasGroup canvasGroup;
+        [Header("UI Panel")]
+        public GameObject rootPanel;
 
-        protected virtual void Awake()
-        {
-            if (rootPanel == null)
-                rootPanel = gameObject;
-
-            if (canvasGroup == null)
-                canvasGroup = GetComponent<CanvasGroup>();
-
-            if (canvasGroup == null)
-                canvasGroup = rootPanel.AddComponent<CanvasGroup>();
-        }
-
+        /// <summary>
+        /// Show this UI screen.
+        /// </summary>
         public virtual void Show()
         {
             if (rootPanel != null)
-                rootPanel.SetActive(true);
-
-            if (canvasGroup != null)
             {
-                canvasGroup.alpha = 1f;
-                canvasGroup.interactable = true;
-                canvasGroup.blocksRaycasts = true;
+                rootPanel.SetActive(true);
+                Debug.Log($"Showing UI: {rootPanel.name}");
+            }
+            else
+            {
+                Debug.LogWarning($"Cannot show UI: rootPanel is null on {gameObject.name}");
             }
         }
 
+        /// <summary>
+        /// Hide this UI screen.
+        /// </summary>
         public virtual void Hide()
         {
-            if (canvasGroup != null)
-            {
-                canvasGroup.alpha = 0f;
-                canvasGroup.interactable = false;
-                canvasGroup.blocksRaycasts = false;
-            }
-
             if (rootPanel != null)
+            {
                 rootPanel.SetActive(false);
-        }
-
-        protected virtual void OnEnable()
-        {
-            // Override in derived classes
-        }
-
-        protected virtual void OnDisable()
-        {
-            // Override in derived classes
+            }
         }
     }
 }

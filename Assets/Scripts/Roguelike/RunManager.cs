@@ -1,127 +1,176 @@
-using System.Collections.Generic;
-using UnityEngine;
 using FourfoldFate.Core;
-using FourfoldFate.Party;
-using FourfoldFate.Progression;
-using FourfoldFate.Relics;
+using UnityEngine;
 
 namespace FourfoldFate.Roguelike
 {
     /// <summary>
-    /// Manages the current roguelike run.
-    /// Handles level progression (1-100), encounters, and run state.
+    /// Manages the overall roguelike run progression (levels 1-100).
     /// </summary>
     public class RunManager : MonoBehaviour
     {
         [Header("Run State")]
-        [SerializeField] private int currentLevel = 1;
-        [SerializeField] private bool isRunActive = false;
-        
-        [Header("Run Data")]
-        [SerializeField] private RunData currentRunData;
-        
-        [Header("Managers")]
-        private EncounterManager encounterManager;
-        private ProgressionManager progressionManager;
-        private PartyManager partyManager;
-        private LevelUpSystem levelUpSystem;
-        private RelicManager relicManager;
+        public int currentLevel = 1;
+        public bool isRunActive = false;
 
-        public int CurrentLevel => currentLevel;
-        public bool IsRunActive => isRunActive;
+        [Header("Managers")]
+        public EncounterManager encounterManager;
+        public ProgressionManager progressionManager;
+        public Party.PartyManager partyManager;
+
+        public static RunManager Instance { get; private set; }
 
         private void Awake()
         {
-            encounterManager = GetComponent<EncounterManager>();
-            progressionManager = GetComponent<ProgressionManager>();
-            partyManager = FindObjectOfType<PartyManager>();
-            levelUpSystem = GetComponent<LevelUpSystem>();
-            relicManager = FindObjectOfType<RelicManager>();
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+            else if (Instance != this)
+            {
+                // Only destroy if there's a different Instance
+                Debug.LogWarning($"RunManager.Instance already exists ({Instance.gameObject.name}), destroying duplicate on {gameObject.name}");
+                Destroy(gameObject);
+            }
+            // If Instance == this, we're the singleton, do nothing
         }
 
-        public void StartNewRun(Unit startingUnit)
+        private void Start()
         {
+            // Auto-find managers if not assigned
+            if (encounterManager == null)
+                encounterManager = FindFirstObjectByType<EncounterManager>();
+            
+            if (progressionManager == null)
+                progressionManager = FindFirstObjectByType<ProgressionManager>();
+            
+            if (partyManager == null)
+                partyManager = FindFirstObjectByType<Party.PartyManager>();
+        }
+
+        /// <summary>
+        /// Start a new run.
+        /// </summary>
+        public void StartNewRun()
+        {
+            Debug.Log("StartNewRun called");
             currentLevel = 1;
             isRunActive = true;
-            
-            // Initialize party with starting unit
-            if (partyManager != null && startingUnit != null)
-            {
-                partyManager.InitializeParty(startingUnit);
-                partyManager.UpdateUnlocks(currentLevel);
-            }
-            
-            OnRunStarted?.Invoke();
-        }
 
-        public void StartNextEncounter()
-        {
-            if (encounterManager != null)
-            {
-                bool isMiniboss = IsMinibossLevel(currentLevel);
-                encounterManager.StartEncounter(currentLevel, isMiniboss);
-            }
+            // Auto-find managers if not assigned
+            if (encounterManager == null)
+                encounterManager = FindFirstObjectByType<EncounterManager>();
             
-            OnEncounterStarted?.Invoke(currentLevel);
-        }
+            if (progressionManager == null)
+                progressionManager = FindFirstObjectByType<ProgressionManager>();
+            
+            if (partyManager == null)
+                partyManager = FindFirstObjectByType<Party.PartyManager>();
 
-        public void CompleteEncounter(bool victory)
-        {
-            if (victory)
+            // Initialize party with first character (The Warden - Tank)
+            if (partyManager == null)
             {
-                // Level up
-                currentLevel++;
-                
-                // Update party unlocks
-                if (partyManager != null)
-                {
-                    partyManager.UpdateUnlocks(currentLevel);
-                }
-                
-                // Handle victory rewards
-                if (progressionManager != null)
-                {
-                    progressionManager.GrantRewards(currentLevel - 1, 0);
-                }
-                
-                // Check if level-up choice should be shown
-                if (levelUpSystem != null && partyManager != null)
-                {
-                    OnLevelUpAvailable?.Invoke(currentLevel);
-                }
-                
-                // Check if run is complete (reached level 100)
-                if (currentLevel > 100)
-                {
-                    EndRun(true);
-                }
-                else
-                {
-                    // Show reward selection screen
-                    OnRewardsAvailable?.Invoke();
-                }
+                Debug.LogError("PartyManager is null! Cannot start run.");
+                return;
+            }
+
+            if (Data.GameDataManager.Instance == null)
+            {
+                Debug.LogError("GameDataManager.Instance is null! Cannot start run.");
+                return;
+            }
+
+            var gameData = Data.GameDataManager.Instance;
+            
+            // Get first player unit
+            var allPlayerUnits = gameData.GetAllPlayerUnits();
+            UnitData wardenData = null;
+            
+            if (allPlayerUnits != null && allPlayerUnits.Count > 0)
+            {
+                wardenData = allPlayerUnits[0];
             }
             else
             {
-                // Run ended in defeat
-                EndRun(false);
+                // Fallback: try direct ID lookup
+                wardenData = gameData.GetUnit("the_warden");
             }
+            
+            if (wardenData != null)
+            {
+                GameObject wardenObj = new GameObject("The Warden");
+                Core.Unit warden = wardenObj.AddComponent<Core.Unit>();
+                warden.Initialize(wardenData);
+                partyManager.AddPartyMember(warden);
+                Debug.Log($"Added {warden.unitName} to party");
+            }
+            else
+            {
+                Debug.LogError("Could not find player unit data! Check UnitDefinitions.");
+            }
+
+            // Start first encounter
+            StartNextEncounter();
         }
 
         /// <summary>
-        /// Check if current level is a miniboss level
+        /// Start the next encounter for the current level.
+        /// </summary>
+        public void StartNextEncounter()
+        {
+            Debug.Log($"StartNextEncounter called for level {currentLevel}");
+            
+            if (encounterManager == null)
+            {
+                Debug.LogError("EncounterManager is null!");
+                return;
+            }
+
+            bool isMiniboss = IsMinibossLevel(currentLevel);
+            var encounter = encounterManager.SelectEncounter(currentLevel, isMiniboss);
+
+            if (encounter == null)
+            {
+                Debug.LogWarning($"No encounter found for level {currentLevel}");
+                return;
+            }
+
+            Debug.Log($"Selected encounter: {encounter.encounterName}");
+            var enemies = encounterManager.SpawnEnemies(encounter);
+            Debug.Log($"Spawned {enemies.Count} enemies");
+
+            if (partyManager == null)
+            {
+                Debug.LogError("PartyManager is null!");
+                return;
+            }
+
+            if (Core.BattleManager.Instance == null)
+            {
+                Debug.LogError("BattleManager.Instance is null!");
+                return;
+            }
+
+            if (partyManager.partyMembers == null || partyManager.partyMembers.Count == 0)
+            {
+                Debug.LogError("Party has no members!");
+                return;
+            }
+
+            Debug.Log($"Starting combat with {partyManager.partyMembers.Count} party members");
+            Core.BattleManager.Instance.StartCombat(partyManager.partyMembers, enemies);
+        }
+
+        /// <summary>
+        /// Check if a level is a miniboss level.
         /// </summary>
         public bool IsMinibossLevel(int level)
         {
-            // Minibosses at: 10, 20, 30, 40, 50, 60, 80, 90
-            // Major minibosses at: 30, 50, 80
-            // Final boss at: 100
             return level == 10 || level == 20 || level == 30 || level == 40 || 
-                   level == 50 || level == 60 || level == 80 || level == 90 || level == 100;
+                   level == 50 || level == 60 || level == 80 || level == 90;
         }
 
         /// <summary>
-        /// Check if current level is a major miniboss
+        /// Check if a level is a major miniboss level.
         /// </summary>
         public bool IsMajorMinibossLevel(int level)
         {
@@ -129,31 +178,30 @@ namespace FourfoldFate.Roguelike
         }
 
         /// <summary>
-        /// Check if current level is the final boss
+        /// Check if a level is the final boss level.
         /// </summary>
         public bool IsFinalBossLevel(int level)
         {
             return level == 100;
         }
 
-        public void EndRun(bool victory)
+        /// <summary>
+        /// Complete the current level and progress.
+        /// </summary>
+        public void CompleteLevel()
         {
-            isRunActive = false;
-            
-            if (victory)
+            if (progressionManager != null)
             {
-                // Handle victory rewards and meta-progression
+                progressionManager.GrantRewards(currentLevel - 1, 0);
             }
-            
-            OnRunEnded?.Invoke(victory);
-        }
 
-        // Events
-        public System.Action OnRunStarted;
-        public System.Action<int> OnEncounterStarted;
-        public System.Action OnRewardsAvailable;
-        public System.Action<int> OnLevelUpAvailable;
-        public System.Action<bool> OnRunEnded;
+            currentLevel++;
+            if (currentLevel > 100)
+            {
+                // Run complete
+                isRunActive = false;
+            }
+        }
     }
 }
 

@@ -1,89 +1,85 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace FourfoldFate.UI
 {
     /// <summary>
     /// Central manager for all UI systems.
-    /// Handles UI state transitions and screen management.
     /// </summary>
     public class UIManager : MonoBehaviour
     {
         [Header("UI Screens")]
-        [SerializeField] private MainMenuUI mainMenuUI;
-        [SerializeField] private BattleArenaUI battleArenaUI;
-        [SerializeField] private PartyManagementUI partyManagementUI;
-        [SerializeField] private LevelUpUI levelUpUI;
-        [SerializeField] private RelicSelectionUI relicSelectionUI;
-        [SerializeField] private RunProgressionUI runProgressionUI;
+        public MainMenuUI mainMenuUI;
+        public BattleArenaUI battleArenaUI;
+        public PartyManagementUI partyManagementUI;
+        public LevelUpUI levelUpUI;
+        public RelicSelectionUI relicSelectionUI;
+        public RunProgressionUI runProgressionUI;
 
-        [Header("UI State")]
-        [SerializeField] private UIState currentState = UIState.MainMenu;
-
-        public UIState CurrentState => currentState;
+        public static UIManager Instance { get; private set; }
 
         private void Awake()
         {
-            InitializeUI();
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
         }
 
         private void Start()
         {
             // Show main menu on startup
-            ShowMainMenu();
-        }
-
-        private void InitializeUI()
-        {
-            // Hide all UI screens initially (except main menu which will be shown in Start)
-            if (battleArenaUI != null) battleArenaUI.Hide();
-            if (partyManagementUI != null) partyManagementUI.Hide();
-            if (levelUpUI != null) levelUpUI.Hide();
-            if (relicSelectionUI != null) relicSelectionUI.Hide();
-            if (runProgressionUI != null) runProgressionUI.Hide();
-            // Don't hide mainMenuUI here - it will be shown in Start()
+            if (mainMenuUI != null)
+            {
+                Debug.Log("UIManager: Showing main menu on startup");
+                ShowMainMenu();
+            }
+            else
+            {
+                Debug.LogWarning("UIManager: mainMenuUI is null! Cannot show main menu.");
+            }
         }
 
         public void ShowMainMenu()
         {
-            HideAllScreens();
+            HideAll();
             if (mainMenuUI != null) mainMenuUI.Show();
-            currentState = UIState.MainMenu;
         }
 
         public void ShowBattleArena()
         {
-            HideAllScreens();
+            HideAll();
             if (battleArenaUI != null) battleArenaUI.Show();
-            currentState = UIState.Battle;
         }
 
         public void ShowPartyManagement()
         {
-            HideAllScreens();
+            HideAll();
             if (partyManagementUI != null) partyManagementUI.Show();
-            currentState = UIState.PartyManagement;
         }
 
         public void ShowLevelUp()
         {
+            HideAll();
             if (levelUpUI != null) levelUpUI.Show();
-            currentState = UIState.LevelUp;
         }
 
         public void ShowRelicSelection()
         {
+            HideAll();
             if (relicSelectionUI != null) relicSelectionUI.Show();
-            currentState = UIState.RelicSelection;
         }
 
         public void ShowRunProgression()
         {
+            HideAll();
             if (runProgressionUI != null) runProgressionUI.Show();
-            currentState = UIState.RunProgression;
         }
 
-        private void HideAllScreens()
+        private void HideAll()
         {
             if (mainMenuUI != null) mainMenuUI.Hide();
             if (battleArenaUI != null) battleArenaUI.Hide();
@@ -92,20 +88,6 @@ namespace FourfoldFate.UI
             if (relicSelectionUI != null) relicSelectionUI.Hide();
             if (runProgressionUI != null) runProgressionUI.Hide();
         }
-
-        // Events
-        public System.Action<UIState> OnStateChanged;
-    }
-
-    public enum UIState
-    {
-        MainMenu,
-        Battle,
-        PartyManagement,
-        LevelUp,
-        RelicSelection,
-        RunProgression,
-        Paused
     }
 }
 

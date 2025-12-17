@@ -1,41 +1,28 @@
 using UnityEngine;
-using FourfoldFate.Core;
 
 namespace FourfoldFate.Balance
 {
     /// <summary>
-    /// Manages balance configuration and applies balanced stats.
-    /// Integrates with the Balance Agent's recommendations.
+    /// Manages balance calculations and difficulty scaling.
     /// </summary>
     public class BalanceManager : MonoBehaviour
     {
-        [Header("Balance Configuration")]
-        [SerializeField] private BalanceConfig balanceConfig;
+        [Header("Balance Config")]
+        public BalanceConfig config = new BalanceConfig();
 
-        private static BalanceManager instance;
-        public static BalanceManager Instance
-        {
-            get
-            {
-                if (instance == null)
-                    instance = FindObjectOfType<BalanceManager>();
-                return instance;
-            }
-        }
+        public static BalanceManager Instance { get; private set; }
 
         private void Awake()
         {
-            if (instance == null)
+            if (Instance == null)
             {
-                instance = this;
-                // Only use DontDestroyOnLoad if this is a root GameObject
+                Instance = this;
+                
+                // Only call DontDestroyOnLoad if this is a root GameObject
                 if (transform.parent == null)
                 {
                     DontDestroyOnLoad(gameObject);
                 }
-                
-                if (balanceConfig == null)
-                    balanceConfig = new BalanceConfig();
             }
             else
             {
@@ -44,54 +31,19 @@ namespace FourfoldFate.Balance
         }
 
         /// <summary>
-        /// Get the balance configuration
-        /// </summary>
-        public BalanceConfig GetBalanceConfig()
-        {
-            return balanceConfig;
-        }
-
-        /// <summary>
-        /// Get baseline stats for an archetype
-        /// </summary>
-        public Balance.ArchetypeBaseline GetArchetypeBaseline(Core.Archetypes.ArchetypeType archetypeType)
-        {
-            return balanceConfig.GetBaseline(archetypeType);
-        }
-
-        /// <summary>
-        /// Calculate difficulty multiplier for a level
+        /// Calculate difficulty multiplier for a level.
         /// </summary>
         public float GetDifficultyMultiplier(int level)
         {
-            return balanceConfig.GetDifficultyMultiplier(level);
+            return Mathf.Pow(config.levelScalingMultiplier, level - 1);
         }
 
         /// <summary>
-        /// Apply damage formula: Flat Reduction (Damage - Armor)
+        /// Calculate scaled damage for a level.
         /// </summary>
-        public float CalculateDamage(float baseDamage, float armor)
+        public float GetScaledDamage(float baseDamage, int level)
         {
-            return Mathf.Max(0f, baseDamage - armor);
-        }
-
-        /// <summary>
-        /// Validate unit stats against balance baselines
-        /// </summary>
-        public bool ValidateUnitStats(UnitData unitData)
-        {
-            if (unitData == null) return false;
-
-            var baseline = balanceConfig.GetBaseline(unitData.archetypeType);
-            
-            // Check if stats are within reasonable range of baseline
-            // This is a simple validation - can be expanded
-            bool healthValid = unitData.MaxHealth >= baseline.maxHealth * 0.8f && 
-                              unitData.MaxHealth <= baseline.maxHealth * 1.5f;
-            bool damageValid = unitData.AttackDamage >= baseline.attackDamage * 0.7f && 
-                              unitData.AttackDamage <= baseline.attackDamage * 1.5f;
-            
-            return healthValid && damageValid;
+            return baseDamage * GetDifficultyMultiplier(level);
         }
     }
 }

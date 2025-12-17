@@ -2,410 +2,350 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using FourfoldFate.Core;
-using FourfoldFate.Party;
 using FourfoldFate.Roguelike;
 
 namespace FourfoldFate.UI
 {
     /// <summary>
-    /// Battle arena UI showing combat state, party health, enemy health, and combat feedback.
+    /// Battle arena UI screen with full combat interface.
     /// </summary>
     public class BattleArenaUI : BaseUI
     {
         [Header("Party Display")]
-        [SerializeField] private Transform partyContainer;
-        [SerializeField] private GameObject unitPanelPrefab;
-        [SerializeField] private List<UnitPanel> unitPanels = new List<UnitPanel>();
+        public Transform partyContainer;
+        public GameObject partyUnitPrefab; // Will be created dynamically if null
 
         [Header("Enemy Display")]
-        [SerializeField] private Transform enemyContainer;
-        [SerializeField] private GameObject enemyPanelPrefab;
-        [SerializeField] private List<EnemyPanel> enemyPanels = new List<EnemyPanel>();
+        public Transform enemyContainer;
+        public GameObject enemyUnitPrefab; // Will be created dynamically if null
+
+        [Header("Action Buttons")]
+        public Button attackButton;
+        public Button endTurnButton;
+        public Transform abilityButtonContainer;
+        public GameObject abilityButtonPrefab;
 
         [Header("Combat Info")]
-        [SerializeField] private Text levelText;
-        [SerializeField] private Text encounterTypeText;
-        [SerializeField] private Text combatLogText;
-        [SerializeField] private ScrollRect combatLogScroll;
+        public Text turnIndicatorText;
+        public Text combatLogText;
+        public ScrollRect combatLogScrollRect;
 
-        [Header("Synergy Display")]
-        [SerializeField] private Transform synergyContainer;
-        [SerializeField] private GameObject synergyBadgePrefab;
-
-        [Header("Archetype Indicators")]
-        [SerializeField] private Color tankColor = new Color(0.2f, 0.6f, 0.8f);
-        [SerializeField] private Color fighterColor = new Color(0.8f, 0.3f, 0.2f);
-        [SerializeField] private Color mageColor = new Color(0.6f, 0.2f, 0.8f);
-        [SerializeField] private Color assassinColor = new Color(0.3f, 0.3f, 0.3f);
+        [Header("Party Stats")]
+        public Text synergyBadgesText;
 
         private BattleManager battleManager;
-        private PartyManager partyManager;
-        private RunManager runManager;
+        private List<GameObject> partyUIElements = new List<GameObject>();
+        private List<GameObject> enemyUIElements = new List<GameObject>();
+        private Unit selectedUnit;
+        private Unit selectedTarget;
 
-        protected override void Awake()
+        private void Start()
         {
-            base.Awake();
-            battleManager = FindObjectOfType<BattleManager>();
-            partyManager = FindObjectOfType<PartyManager>();
-            runManager = FindObjectOfType<RunManager>();
-        }
-
-        protected override void OnEnable()
-        {
-            base.OnEnable();
+            SetupButtons();
+            battleManager = BattleManager.Instance;
+            
             if (battleManager != null)
             {
-                battleManager.OnBattleStarted += OnBattleStarted;
-                battleManager.OnBattleEnded += OnBattleEnded;
-            }
-        }
-
-        protected override void OnDisable()
-        {
-            base.OnDisable();
-            if (battleManager != null)
-            {
-                battleManager.OnBattleStarted -= OnBattleStarted;
-                battleManager.OnBattleEnded -= OnBattleEnded;
+                battleManager.OnDamageDealt += OnDamageDealt;
+                battleManager.OnCombatEnded += OnCombatEnded;
             }
         }
 
         private void Update()
         {
+            UpdateUI();
+        }
+
+        private void SetupButtons()
+        {
+            if (attackButton != null)
+            {
+                attackButton.onClick.AddListener(OnAttackClicked);
+            }
+
+            if (endTurnButton != null)
+            {
+                endTurnButton.onClick.AddListener(OnEndTurnClicked);
+            }
+        }
+
+        private void UpdateUI()
+        {
+            if (battleManager == null) return;
+
+            // Update turn indicator
+            if (turnIndicatorText != null)
+            {
+                turnIndicatorText.text = battleManager.isPlayerTurn ? "Your Turn" : "Enemy Turn";
+            }
+
+            // Update party display
             UpdatePartyDisplay();
+            
+            // Update enemy display
             UpdateEnemyDisplay();
-            UpdateLevelDisplay();
-        }
 
-        private void OnBattleStarted()
-        {
-            SetupPartyDisplay();
-            SetupEnemyDisplay();
-            SetupSynergyDisplay();
-            AddCombatLog("The Trials begin to test your Circle.");
-        }
-
-        private void OnBattleEnded(BattleResult result)
-        {
-            string resultText = result == BattleResult.Victory 
-                ? "Your Circle stands. The Trials acknowledge your victory." 
-                : "The Circle breaks. The Trials claim their due.";
-            AddCombatLog(resultText);
-        }
-
-        private void SetupPartyDisplay()
-        {
-            if (partyManager == null || partyContainer == null) return;
-
-            // Clear existing panels
-            foreach (var panel in unitPanels)
+            // Update button states
+            if (attackButton != null)
             {
-                if (panel != null) Destroy(panel.gameObject);
+                attackButton.interactable = battleManager.isPlayerTurn && battleManager.isCombatActive;
             }
-            unitPanels.Clear();
 
-            // Create panels for each party member
-            foreach (var unit in partyManager.PartyMembers)
+            if (endTurnButton != null)
             {
-                if (unit == null) continue;
-
-                GameObject panelObj = Instantiate(unitPanelPrefab, partyContainer);
-                UnitPanel panel = panelObj.GetComponent<UnitPanel>();
-                if (panel == null) panel = panelObj.AddComponent<UnitPanel>();
-
-                panel.Initialize(unit);
-                unitPanels.Add(panel);
-
-                // Subscribe to unit events
-                unit.OnHealthChanged += panel.OnHealthChanged;
-                unit.OnUnitDied += panel.OnUnitDied;
+                endTurnButton.interactable = battleManager.isPlayerTurn && battleManager.isCombatActive;
             }
-        }
 
-        private void SetupEnemyDisplay()
-        {
-            if (battleManager == null || enemyContainer == null) return;
-
-            // Clear existing panels
-            foreach (var panel in enemyPanels)
-            {
-                if (panel != null) Destroy(panel.gameObject);
-            }
-            enemyPanels.Clear();
-
-            // Get enemies from battle manager
-            foreach (var enemy in battleManager.EnemyTeam)
-            {
-                if (enemy == null) continue;
-
-                GameObject panelObj = Instantiate(enemyPanelPrefab, enemyContainer);
-                EnemyPanel panel = panelObj.GetComponent<EnemyPanel>();
-                if (panel == null) panel = panelObj.AddComponent<EnemyPanel>();
-
-                panel.Initialize(enemy);
-                enemyPanels.Add(panel);
-
-                // Subscribe to enemy events
-                enemy.OnHealthChanged += panel.OnHealthChanged;
-                enemy.OnUnitDied += panel.OnUnitDied;
-            }
+            // Update synergy badges
+            UpdateSynergyBadges();
         }
 
         private void UpdatePartyDisplay()
         {
-            foreach (var panel in unitPanels)
+            if (partyContainer == null || battleManager == null) return;
+
+            // Clear existing UI
+            foreach (var ui in partyUIElements)
             {
-                if (panel != null && panel.Unit != null)
-                {
-                    panel.UpdateDisplay();
-                }
+                if (ui != null) Destroy(ui);
+            }
+            partyUIElements.Clear();
+
+            // Create UI for each party member
+            for (int i = 0; i < battleManager.partyUnits.Count; i++)
+            {
+                Unit unit = battleManager.partyUnits[i];
+                if (unit == null) continue;
+
+                GameObject unitUI = CreateUnitUI(unit, partyContainer, true);
+                partyUIElements.Add(unitUI);
             }
         }
 
         private void UpdateEnemyDisplay()
         {
-            foreach (var panel in enemyPanels)
+            if (enemyContainer == null || battleManager == null) return;
+
+            // Clear existing UI
+            foreach (var ui in enemyUIElements)
             {
-                if (panel != null && panel.Enemy != null)
-                {
-                    panel.UpdateDisplay();
-                }
+                if (ui != null) Destroy(ui);
+            }
+            enemyUIElements.Clear();
+
+            // Create UI for each enemy
+            for (int i = 0; i < battleManager.enemyUnits.Count; i++)
+            {
+                Unit unit = battleManager.enemyUnits[i];
+                if (unit == null) continue;
+
+                GameObject unitUI = CreateUnitUI(unit, enemyContainer, false);
+                enemyUIElements.Add(unitUI);
             }
         }
 
-        private void SetupSynergyDisplay()
+        private GameObject CreateUnitUI(Unit unit, Transform parent, bool isParty)
         {
-            if (partyManager == null || synergyContainer == null) return;
+            // Create unit UI panel
+            GameObject unitPanel = new GameObject($"{unit.unitName}_UI");
+            unitPanel.transform.SetParent(parent, false);
 
-            // Clear existing badges
-            foreach (Transform child in synergyContainer)
+            RectTransform rect = unitPanel.AddComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(200, 150);
+            rect.anchoredPosition = Vector2.zero;
+
+            // Add background
+            Image bg = unitPanel.AddComponent<Image>();
+            bg.color = isParty ? new Color(0.2f, 0.4f, 0.8f, 0.5f) : new Color(0.8f, 0.2f, 0.2f, 0.5f);
+
+            // Add unit name
+            GameObject nameObj = new GameObject("Name");
+            nameObj.transform.SetParent(unitPanel.transform, false);
+            Text nameText = nameObj.AddComponent<Text>();
+            nameText.text = unit.unitName;
+            nameText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            nameText.fontSize = 14;
+            nameText.color = Color.white;
+            RectTransform nameRect = nameObj.GetComponent<RectTransform>();
+            nameRect.anchorMin = new Vector2(0, 0.7f);
+            nameRect.anchorMax = new Vector2(1, 1);
+            nameRect.sizeDelta = Vector2.zero;
+            nameRect.anchoredPosition = Vector2.zero;
+
+            // Add health bar
+            GameObject healthBarObj = new GameObject("HealthBar");
+            healthBarObj.transform.SetParent(unitPanel.transform, false);
+            RectTransform healthBarRect = healthBarObj.AddComponent<RectTransform>();
+            healthBarRect.anchorMin = new Vector2(0.05f, 0.4f);
+            healthBarRect.anchorMax = new Vector2(0.95f, 0.6f);
+            healthBarRect.sizeDelta = Vector2.zero;
+            healthBarRect.anchoredPosition = Vector2.zero;
+
+            // Health bar background
+            Image healthBg = healthBarObj.AddComponent<Image>();
+            healthBg.color = Color.black;
+
+            // Health bar fill
+            GameObject healthFillObj = new GameObject("HealthFill");
+            healthFillObj.transform.SetParent(healthBarObj.transform, false);
+            Image healthFill = healthFillObj.AddComponent<Image>();
+            healthFill.color = Color.green;
+            RectTransform healthFillRect = healthFillObj.GetComponent<RectTransform>();
+            healthFillRect.anchorMin = Vector2.zero;
+            healthFillRect.anchorMax = new Vector2(1, 1);
+            healthFillRect.sizeDelta = Vector2.zero;
+            healthFillRect.anchoredPosition = Vector2.zero;
+
+            // Health text
+            GameObject healthTextObj = new GameObject("HealthText");
+            healthTextObj.transform.SetParent(unitPanel.transform, false);
+            Text healthText = healthTextObj.AddComponent<Text>();
+            healthText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            healthText.fontSize = 12;
+            healthText.color = Color.white;
+            healthText.alignment = TextAnchor.MiddleCenter;
+            RectTransform healthTextRect = healthTextObj.GetComponent<RectTransform>();
+            healthTextRect.anchorMin = new Vector2(0, 0.2f);
+            healthTextRect.anchorMax = new Vector2(1, 0.4f);
+            healthTextRect.sizeDelta = Vector2.zero;
+            healthTextRect.anchoredPosition = Vector2.zero;
+
+            // Store references for updating
+            UnitUIComponent uiComponent = unitPanel.AddComponent<UnitUIComponent>();
+            uiComponent.unit = unit;
+            uiComponent.healthFill = healthFill;
+            uiComponent.healthText = healthText;
+
+            // Add click handler for targeting
+            if (isParty)
             {
-                Destroy(child.gameObject);
+                Button selectButton = unitPanel.AddComponent<Button>();
+                selectButton.onClick.AddListener(() => SelectPartyUnit(unit));
+            }
+            else
+            {
+                Button targetButton = unitPanel.AddComponent<Button>();
+                targetButton.onClick.AddListener(() => SelectTarget(unit));
             }
 
-            // Get active synergies
-            var synergies = partyManager.GetActiveSynergies();
-            foreach (var kvp in synergies)
-            {
-                GameObject badgeObj = Instantiate(synergyBadgePrefab, synergyContainer);
-                Text text = badgeObj.GetComponentInChildren<Text>();
-                if (text != null)
-                {
-                    text.text = GetSynergyCourtName(kvp.Key);
-                }
-            }
+            return unitPanel;
         }
 
-        private void UpdateLevelDisplay()
+        private void UpdateSynergyBadges()
         {
-            if (runManager != null && levelText != null)
-            {
-                levelText.text = $"Trial {runManager.CurrentLevel}/100";
-            }
+            if (synergyBadgesText == null || Party.PartyManager.Instance == null) return;
 
-            if (encounterTypeText != null && runManager != null)
+            var synergies = Party.PartyManager.Instance.GetActiveSynergies();
+            if (synergies.Count > 0)
             {
-                if (runManager.IsFinalBossLevel(runManager.CurrentLevel))
-                    encounterTypeText.text = "The Sundered Arbiter";
-                else if (runManager.IsMajorMinibossLevel(runManager.CurrentLevel))
-                    encounterTypeText.text = "Myth-Eater";
-                else if (runManager.IsMinibossLevel(runManager.CurrentLevel))
-                    encounterTypeText.text = "Tollgate";
-                else
-                    encounterTypeText.text = "Standard Trial";
+                string synergyText = "Active Synergies: ";
+                foreach (var tag in synergies)
+                {
+                    synergyText += tag.ToString() + " ";
+                }
+                synergyBadgesText.text = synergyText;
+            }
+            else
+            {
+                synergyBadgesText.text = "No Active Synergies";
             }
         }
 
-        public void AddCombatLog(string message)
+        private void OnAttackClicked()
+        {
+            if (battleManager == null || !battleManager.isPlayerTurn) return;
+            if (battleManager.partyUnits.Count == 0 || battleManager.enemyUnits.Count == 0) return;
+
+            // Auto-attack first enemy for now
+            Unit attacker = battleManager.partyUnits[0];
+            Unit target = battleManager.enemyUnits[0];
+            
+            battleManager.PlayerAttack(attacker, target);
+            AddCombatLog($"{attacker.unitName} attacks {target.unitName}!");
+        }
+
+        private void OnEndTurnClicked()
+        {
+            if (battleManager != null && battleManager.isPlayerTurn)
+            {
+                battleManager.EndPlayerTurn();
+                AddCombatLog("Turn ended.");
+            }
+        }
+
+        private void SelectPartyUnit(Unit unit)
+        {
+            selectedUnit = unit;
+            AddCombatLog($"Selected {unit.unitName}");
+        }
+
+        private void SelectTarget(Unit unit)
+        {
+            selectedTarget = unit;
+            AddCombatLog($"Targeting {unit.unitName}");
+        }
+
+        private void OnDamageDealt(Unit attacker, Unit target, float damage)
+        {
+            AddCombatLog($"{attacker.unitName} deals {damage:F0} damage to {target.unitName}!");
+        }
+
+        private void OnCombatEnded(bool victory)
+        {
+            if (victory)
+            {
+                AddCombatLog("Victory! You won the battle!");
+                // TODO: Show reward screen
+            }
+            else
+            {
+                AddCombatLog("Defeat! Your party has fallen.");
+                // TODO: Show game over screen
+            }
+        }
+
+        private void AddCombatLog(string message)
         {
             if (combatLogText != null)
             {
-                combatLogText.text += $"\n{message}";
+                combatLogText.text += message + "\n";
                 
                 // Auto-scroll to bottom
-                if (combatLogScroll != null)
+                if (combatLogScrollRect != null)
                 {
                     Canvas.ForceUpdateCanvases();
-                    combatLogScroll.verticalNormalizedPosition = 0f;
+                    combatLogScrollRect.verticalNormalizedPosition = 0f;
                 }
             }
         }
 
-        private string GetSynergyCourtName(SynergyTag tag)
+        private void OnDestroy()
         {
-            return tag switch
+            if (battleManager != null)
             {
-                SynergyTag.Fire => "Court of Ember",
-                SynergyTag.Nature => "Court of Verdance",
-                SynergyTag.Shadow => "Court of Gloam",
-                SynergyTag.Holy => "Court of Dawn",
-                SynergyTag.Arcane => "Court of Aether",
-                SynergyTag.Steel => "Court of Anvil",
-                SynergyTag.Storm => "Court of Tempest",
-                _ => tag.ToString()
-            };
+                battleManager.OnDamageDealt -= OnDamageDealt;
+                battleManager.OnCombatEnded -= OnCombatEnded;
+            }
         }
     }
 
     /// <summary>
-    /// UI panel for displaying a unit's combat state
+    /// Component to hold references for unit UI updates.
     /// </summary>
-    public class UnitPanel : MonoBehaviour
+    public class UnitUIComponent : MonoBehaviour
     {
-        [Header("UI Elements")]
-        [SerializeField] private Text nameText;
-        [SerializeField] private Text healthText;
-        [SerializeField] private Image healthBar;
-        [SerializeField] private Image archetypeIndicator;
-        [SerializeField] private Text archetypeText;
-        [SerializeField] private Text guardText;
-        [SerializeField] private Text momentumText;
-        [SerializeField] private Text surgeText;
-        [SerializeField] private Text opportunityText;
+        public Unit unit;
+        public Image healthFill;
+        public Text healthText;
 
-        public Unit Unit { get; private set; }
-
-        public void Initialize(Unit unit)
+        private void Update()
         {
-            Unit = unit;
-            UpdateDisplay();
-        }
-
-        public void UpdateDisplay()
-        {
-            if (Unit == null || Unit.Data == null) return;
-
-            if (nameText != null)
-                nameText.text = Unit.Data.unitName;
-
-            if (healthText != null)
-                healthText.text = $"{Unit.CurrentHealth:F0}/{Unit.Data.MaxHealth:F0}";
-
-            if (healthBar != null)
+            if (unit != null && healthFill != null && healthText != null)
             {
-                float healthPercent = Unit.CurrentHealth / Unit.Data.MaxHealth;
-                healthBar.fillAmount = healthPercent;
+                float healthPercent = unit.CurrentHealth / unit.MaxHealth;
+                healthFill.fillAmount = healthPercent;
+                healthText.text = $"{unit.CurrentHealth:F0} / {unit.MaxHealth:F0}";
             }
-
-            // Update archetype-specific displays
-            if (Unit.Archetype != null)
-            {
-                UpdateArchetypeDisplay();
-            }
-        }
-
-        private void UpdateArchetypeDisplay()
-        {
-            if (archetypeText != null)
-            {
-                archetypeText.text = GetArchetypeLoreName(Unit.Archetype.Type);
-            }
-
-            // Update archetype-specific resource displays
-            switch (Unit.Archetype)
-            {
-                case Core.Archetypes.TankArchetype tank:
-                    if (guardText != null)
-                    {
-                        guardText.text = $"Guard: {tank.CurrentGuard}/{tank.MaxGuard}";
-                        guardText.gameObject.SetActive(true);
-                    }
-                    break;
-
-                case Core.Archetypes.FighterArchetype fighter:
-                    if (momentumText != null)
-                    {
-                        momentumText.text = $"Momentum: {fighter.CurrentMomentum}/{fighter.MaxMomentum}";
-                        momentumText.gameObject.SetActive(true);
-                    }
-                    break;
-
-                case Core.Archetypes.MageArchetype mage:
-                    if (surgeText != null)
-                    {
-                        surgeText.text = $"Surge: {mage.CurrentManaSurge}/{mage.MaxManaSurge}";
-                        if (mage.IsOverloaded)
-                            surgeText.text += " [OVERLOAD]";
-                        surgeText.gameObject.SetActive(true);
-                    }
-                    break;
-
-                case Core.Archetypes.AssassinArchetype assassin:
-                    if (opportunityText != null)
-                    {
-                        opportunityText.text = $"Chain: {assassin.KillChainCount}";
-                        opportunityText.gameObject.SetActive(true);
-                    }
-                    break;
-            }
-        }
-
-        public void OnHealthChanged(float current, float max)
-        {
-            UpdateDisplay();
-        }
-
-        public void OnUnitDied(Unit unit)
-        {
-            // Fade out or show death indicator
-        }
-
-        private string GetArchetypeLoreName(Core.Archetypes.ArchetypeType type)
-        {
-            return type switch
-            {
-                Core.Archetypes.ArchetypeType.Tank => "The Method of Keeping",
-                Core.Archetypes.ArchetypeType.Fighter => "The Method of Motion",
-                Core.Archetypes.ArchetypeType.Mage => "The Method of Witness",
-                Core.Archetypes.ArchetypeType.Assassin => "The Method of Ending",
-                _ => type.ToString()
-            };
-        }
-    }
-
-    /// <summary>
-    /// UI panel for displaying enemy combat state
-    /// </summary>
-    public class EnemyPanel : MonoBehaviour
-    {
-        [Header("UI Elements")]
-        [SerializeField] private Text nameText;
-        [SerializeField] private Text healthText;
-        [SerializeField] private Image healthBar;
-
-        public Unit Enemy { get; private set; }
-
-        public void Initialize(Unit enemy)
-        {
-            Enemy = enemy;
-            UpdateDisplay();
-        }
-
-        public void UpdateDisplay()
-        {
-            if (Enemy == null || Enemy.Data == null) return;
-
-            if (nameText != null)
-                nameText.text = Enemy.Data.unitName;
-
-            if (healthText != null)
-                healthText.text = $"{Enemy.CurrentHealth:F0}/{Enemy.Data.MaxHealth:F0}";
-
-            if (healthBar != null)
-            {
-                float healthPercent = Enemy.CurrentHealth / Enemy.Data.MaxHealth;
-                healthBar.fillAmount = healthPercent;
-            }
-        }
-
-        public void OnHealthChanged(float current, float max)
-        {
-            UpdateDisplay();
-        }
-
-        public void OnUnitDied(Unit unit)
-        {
-            // Fade out or show death indicator
         }
     }
 }

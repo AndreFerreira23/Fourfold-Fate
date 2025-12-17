@@ -1,136 +1,83 @@
 using System.Collections.Generic;
-using UnityEngine;
 using FourfoldFate.Core;
+using UnityEngine;
 
 namespace FourfoldFate.Relics
 {
     /// <summary>
-    /// Manages relics collected during a run.
+    /// Manages relic collection and application to party.
     /// </summary>
     public class RelicManager : MonoBehaviour
     {
         [Header("Relic Collection")]
-        [SerializeField] private List<Relic> collectedRelics = new List<Relic>();
-        [SerializeField] private int maxRelics = 30;
+        public List<Relic> collectedRelics = new List<Relic>();
 
-        [Header("Relic Pool")]
-        [SerializeField] private List<Relic> availableRelics = new List<Relic>();
+        public static RelicManager Instance { get; private set; }
 
-        public int CollectedRelicCount => collectedRelics.Count;
-        public List<Relic> CollectedRelics => new List<Relic>(collectedRelics);
-
-        /// <summary>
-        /// Add a relic to the collection
-        /// </summary>
-        public bool AddRelic(Relic relic)
+        private void Awake()
         {
-            if (collectedRelics.Count >= maxRelics)
+            if (Instance == null)
             {
-                Debug.LogWarning("Relic inventory is full!");
-                return false;
+                Instance = this;
             }
-
-            if (collectedRelics.Contains(relic))
+            else
             {
-                Debug.LogWarning($"Relic {relic.relicName} is already collected.");
-                return false;
-            }
-
-            collectedRelics.Add(relic);
-            OnRelicCollected?.Invoke(relic);
-            ApplyRelicToParty(relic);
-
-            return true;
-        }
-
-        /// <summary>
-        /// Remove a relic from the collection
-        /// </summary>
-        public bool RemoveRelic(Relic relic)
-        {
-            if (collectedRelics.Remove(relic))
-            {
-                OnRelicRemoved?.Invoke(relic);
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Apply a relic's effects to all party members
-        /// </summary>
-        private void ApplyRelicToParty(Relic relic)
-        {
-            var partyManager = FindObjectOfType<Party.PartyManager>();
-            if (partyManager != null)
-            {
-                foreach (var unit in partyManager.PartyMembers)
-                {
-                    if (unit != null)
-                    {
-                        relic.ApplyPassiveEffects(unit);
-                    }
-                }
+                Destroy(gameObject);
             }
         }
 
         /// <summary>
-        /// Apply all relic effects when combat starts
+        /// Add a relic to the collection.
         /// </summary>
-        public void OnCombatStart(List<Unit> party)
+        public void AddRelic(Relic relic)
+        {
+            if (relic != null && !collectedRelics.Contains(relic))
+            {
+                collectedRelics.Add(relic);
+            }
+        }
+
+        /// <summary>
+        /// Apply all relic effects to a unit.
+        /// </summary>
+        public void ApplyRelicEffects(Unit unit)
         {
             foreach (var relic in collectedRelics)
             {
-                foreach (var unit in party)
+                if (relic != null)
                 {
-                    if (unit != null)
-                    {
-                        relic.OnCombatStart(unit);
-                    }
+                    relic.ApplyPassiveEffects(unit);
                 }
             }
         }
 
         /// <summary>
-        /// Apply all relic effects when combat ends
+        /// Notify relics that combat has started.
         /// </summary>
-        public void OnCombatEnd(List<Unit> party)
+        public void OnCombatStart(Unit unit)
         {
             foreach (var relic in collectedRelics)
             {
-                foreach (var unit in party)
+                if (relic != null)
                 {
-                    if (unit != null)
-                    {
-                        relic.OnCombatEnd(unit);
-                    }
+                    relic.OnCombatStart(unit);
                 }
             }
         }
 
         /// <summary>
-        /// Get a random relic from the available pool
+        /// Notify relics that combat has ended.
         /// </summary>
-        public Relic GetRandomRelic(Rarity? minRarity = null)
+        public void OnCombatEnd(Unit unit)
         {
-            if (availableRelics == null || availableRelics.Count == 0)
-                return null;
-
-            var validRelics = availableRelics;
-            if (minRarity.HasValue)
+            foreach (var relic in collectedRelics)
             {
-                validRelics = availableRelics.FindAll(r => r.rarity >= minRarity.Value);
+                if (relic != null)
+                {
+                    relic.OnCombatEnd(unit);
+                }
             }
-
-            if (validRelics.Count == 0)
-                validRelics = availableRelics;
-
-            return validRelics[Random.Range(0, validRelics.Count)];
         }
-
-        // Events
-        public System.Action<Relic> OnRelicCollected;
-        public System.Action<Relic> OnRelicRemoved;
     }
 }
 

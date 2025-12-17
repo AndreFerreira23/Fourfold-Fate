@@ -1,164 +1,188 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
 
 namespace FourfoldFate.Core
 {
     /// <summary>
-    /// Manages autobattler combat encounters.
-    /// Handles turn-based automatic combat between teams.
+    /// Manages turn-based combat encounters between party and enemies.
     /// </summary>
     public class BattleManager : MonoBehaviour
     {
-        [Header("Teams")]
-        [SerializeField] private List<Unit> playerTeam = new List<Unit>();
-        [SerializeField] private List<Unit> enemyTeam = new List<Unit>();
+        [Header("Combat State")]
+        public List<Unit> partyUnits = new List<Unit>();
+        public List<Unit> enemyUnits = new List<Unit>();
+        public bool isCombatActive = false;
+        public bool isPlayerTurn = true;
+        public Unit currentActor = null;
+        public int currentTurnIndex = 0;
 
-        public List<Unit> PlayerTeam => new List<Unit>(playerTeam);
-        public List<Unit> EnemyTeam => new List<Unit>(enemyTeam);
-        
-        [Header("Battle State")]
-        [SerializeField] private bool isBattleActive = false;
-        [SerializeField] private float battleTimer = 0f;
-        
-        private BattleState currentState = BattleState.Preparation;
+        [Header("Combat Events")]
+        public System.Action<Unit, Unit, float> OnDamageDealt;
+        public System.Action<Unit, float> OnUnitHealed;
+        public System.Action<bool> OnCombatEnded; // bool = victory
 
-        public bool IsBattleActive => isBattleActive;
-        public BattleState CurrentState => currentState;
+        public static BattleManager Instance { get; private set; }
 
-        private void Update()
+        private void Awake()
         {
-            if (isBattleActive)
+            if (Instance == null)
             {
-                battleTimer += Time.deltaTime;
-                UpdateBattle();
+                Instance = this;
+            }
+            else
+            {
+                Destroy(gameObject);
             }
         }
 
-        public void StartBattle(List<Unit> playerUnits, List<Unit> enemyUnits)
+        /// <summary>
+        /// Start a combat encounter.
+        /// </summary>
+        public void StartCombat(List<Unit> party, List<Unit> enemies)
         {
-            playerTeam = new List<Unit>(playerUnits);
-            enemyTeam = new List<Unit>(enemyUnits);
+            partyUnits = new List<Unit>(party);
+            enemyUnits = new List<Unit>(enemies);
+            isCombatActive = true;
+            isPlayerTurn = true;
+            currentTurnIndex = 0;
             
-            InitializeTeams();
-            isBattleActive = true;
-            currentState = BattleState.Active;
-            battleTimer = 0f;
-            
-            OnBattleStarted?.Invoke();
+            // Start turn-based combat
+            StartCoroutine(CombatLoop());
         }
 
-        private void InitializeTeams()
+        /// <summary>
+        /// Main combat loop - turn-based.
+        /// </summary>
+        private IEnumerator CombatLoop()
         {
-            // Set targets for all units
-            foreach (var unit in playerTeam)
+            while (isCombatActive)
             {
-                unit.SetTarget(GetNearestEnemy(unit, enemyTeam));
-                unit.OnUnitDied += OnUnitDied;
-            }
-            
-            foreach (var unit in enemyTeam)
-            {
-                unit.SetTarget(GetNearestEnemy(unit, playerTeam));
-                unit.OnUnitDied += OnUnitDied;
-            }
-        }
+                // Clean up dead units
+                partyUnits.RemoveAll(u => u == null || u.CurrentHealth <= 0);
+                enemyUnits.RemoveAll(u => u == null || u.CurrentHealth <= 0);
 
-        private Unit GetNearestEnemy(Unit unit, List<Unit> enemies)
-        {
-            if (enemies == null || enemies.Count == 0) return null;
-            
-            Unit nearest = null;
-            float nearestDistance = float.MaxValue;
-            
-            foreach (var enemy in enemies)
-            {
-                if (enemy == null || !enemy.IsAlive) continue;
-                
-                float distance = Vector3.Distance(unit.transform.position, enemy.transform.position);
-                if (distance < nearestDistance)
+                // Check for combat end
+                if (partyUnits.Count == 0)
                 {
-                    nearestDistance = distance;
-                    nearest = enemy;
+                    EndCombat(false);
+                    yield break;
                 }
-            }
-            
-            return nearest;
-        }
-
-        private void UpdateBattle()
-        {
-            // Update targets for units (in case current target died)
-            UpdateTargets();
-            
-            // Check win/lose conditions
-            if (playerTeam.All(u => u == null || !u.IsAlive))
-            {
-                EndBattle(BattleResult.Defeat);
-                return;
-            }
-            
-            if (enemyTeam.All(u => u == null || !u.IsAlive))
-            {
-                EndBattle(BattleResult.Victory);
-                return;
-            }
-        }
-
-        private void UpdateTargets()
-        {
-            foreach (var unit in playerTeam)
-            {
-                if (unit == null || !unit.IsAlive) continue;
-                if (unit.Target == null || !unit.Target.IsAlive)
+                if (enemyUnits.Count == 0)
                 {
-                    unit.SetTarget(GetNearestEnemy(unit, enemyTeam));
+                    EndCombat(true);
+                    yield break;
                 }
-            }
-            
-            foreach (var unit in enemyTeam)
-            {
-                if (unit == null || !unit.IsAlive) continue;
-                if (unit.Target == null || !unit.Target.IsAlive)
+
+                // Player turn
+                if (isPlayerTurn)
                 {
-                    unit.SetTarget(GetNearestEnemy(unit, playerTeam));
+                    yield return StartCoroutine(PlayerTurn());
                 }
+                // Enemy turn
+                else
+                {
+                    yield return StartCoroutine(EnemyTurn());
+                }
+
+                // Switch turns
+                isPlayerTurn = !isPlayerTurn;
+                yield return new WaitForSeconds(0.5f);
             }
         }
 
-        private void OnUnitDied(Unit unit)
+        /// <summary>
+        /// Handle player turn - wait for player input via UI.
+        /// </summary>
+        private IEnumerator PlayerTurn()
         {
-            // Remove from appropriate team
-            playerTeam.Remove(unit);
-            enemyTeam.Remove(unit);
-        }
-
-        private void EndBattle(BattleResult result)
-        {
-            isBattleActive = false;
-            currentState = BattleState.Ended;
+            // Wait for player to make actions via UI
+            // The UI will call PlayerAttack() or PlayerUseAbility()
+            // Then call EndPlayerTurn() when done
             
-            OnBattleEnded?.Invoke(result);
+            float turnTimeout = 30f; // 30 second timeout
+            float elapsed = 0f;
+            
+            while (isPlayerTurn && elapsed < turnTimeout)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+            
+            // Auto-end turn if timeout (prevents infinite waiting)
+            if (isPlayerTurn)
+            {
+                isPlayerTurn = false;
+            }
         }
 
-        // Events
-        public System.Action OnBattleStarted;
-        public System.Action<BattleResult> OnBattleEnded;
-    }
+        /// <summary>
+        /// Handle enemy turn - simple AI.
+        /// </summary>
+        private IEnumerator EnemyTurn()
+        {
+            foreach (var enemy in enemyUnits)
+            {
+                if (enemy == null || enemy.CurrentHealth <= 0) continue;
+                if (partyUnits.Count == 0) break;
 
-    public enum BattleState
-    {
-        Preparation,
-        Active,
-        Paused,
-        Ended
-    }
+                // Simple AI: Attack the first party member
+                Unit target = partyUnits[0];
+                enemy.Attack(target);
+                if (OnDamageDealt != null)
+                    OnDamageDealt(enemy, target, enemy.attackDamage);
 
-    public enum BattleResult
-    {
-        Victory,
-        Defeat,
-        Draw
+                yield return new WaitForSeconds(0.8f);
+            }
+        }
+
+        /// <summary>
+        /// Player uses an ability (called from UI).
+        /// </summary>
+        public void PlayerUseAbility(Unit caster, Ability ability, Unit target = null)
+        {
+            if (!isCombatActive || !isPlayerTurn) return;
+            if (caster == null || ability == null) return;
+
+            if (target == null && enemyUnits.Count > 0)
+                target = enemyUnits[0];
+
+            caster.UseAbility(ability, target);
+        }
+
+        /// <summary>
+        /// Player attacks (called from UI).
+        /// </summary>
+        public void PlayerAttack(Unit attacker, Unit target)
+        {
+            if (!isCombatActive || !isPlayerTurn) return;
+            if (attacker == null || target == null) return;
+
+            attacker.Attack(target);
+            if (OnDamageDealt != null)
+                OnDamageDealt(attacker, target, attacker.attackDamage);
+        }
+
+        /// <summary>
+        /// End player turn (called from UI when done).
+        /// </summary>
+        public void EndPlayerTurn()
+        {
+            if (isCombatActive && isPlayerTurn)
+            {
+                isPlayerTurn = false;
+            }
+        }
+
+        /// <summary>
+        /// End combat and return result.
+        /// </summary>
+        private void EndCombat(bool victory)
+        {
+            isCombatActive = false;
+            if (OnCombatEnded != null)
+                OnCombatEnded(victory);
+        }
     }
 }
 

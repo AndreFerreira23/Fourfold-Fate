@@ -1,33 +1,35 @@
-using UnityEngine;
-
 namespace FourfoldFate.Core.Archetypes
 {
     /// <summary>
     /// Base archetype class. Each archetype has unique mechanics.
     /// </summary>
-    public abstract class Archetype : MonoBehaviour
+    public abstract class Archetype
     {
-        [Header("Archetype Info")]
-        [SerializeField] protected ArchetypeType archetypeType;
-        [SerializeField] protected string archetypeName;
-        [SerializeField] protected string description;
+        public abstract ArchetypeType Type { get; }
+        public abstract string DisplayName { get; }
 
-        public ArchetypeType Type => archetypeType;
-        public string Name => archetypeName;
-        public string Description => description;
+        /// <summary>
+        /// Called when the unit takes damage. Archetypes can modify damage here.
+        /// </summary>
+        public virtual float OnTakeDamage(float damage, Unit unit)
+        {
+            return damage;
+        }
 
-        public abstract void Initialize(Unit unit);
-        public abstract void UpdateArchetype(Unit unit);
-        public abstract void OnCombatStart(Unit unit);
-        public abstract void OnCombatEnd(Unit unit);
-    }
+        /// <summary>
+        /// Called when the unit deals damage. Archetypes can modify damage here.
+        /// </summary>
+        public virtual float OnDealDamage(float damage, Unit unit)
+        {
+            return damage;
+        }
 
-    public enum ArchetypeType
-    {
-        Tank,
-        Fighter,
-        Mage,
-        Assassin
+        /// <summary>
+        /// Called each frame during combat. Archetypes can update their mechanics here.
+        /// </summary>
+        public virtual void Update(Unit unit, float deltaTime)
+        {
+        }
     }
 }
 

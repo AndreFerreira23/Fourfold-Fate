@@ -1,58 +1,48 @@
-using UnityEngine;
 using FourfoldFate.Core;
+using UnityEngine;
 
 namespace FourfoldFate.Relics
 {
     /// <summary>
-    /// Base relic class. Relics are run-defining items that significantly alter gameplay.
+    /// Base class for all relics. Relics provide run-defining bonuses.
     /// </summary>
-    [CreateAssetMenu(fileName = "New Relic", menuName = "Fourfold Fate/Relic")]
     public class Relic : ScriptableObject
     {
         [Header("Relic Info")]
         public string relicName;
         public string description;
         public Sprite icon;
-        public Rarity rarity = Rarity.Common;
+        public RelicRarity rarity;
 
-        [Header("Relic Effects")]
+        [Header("Effects")]
         public RelicEffect[] effects;
 
         /// <summary>
-        /// Apply relic effects when combat starts
+        /// Called when combat starts.
         /// </summary>
         public virtual void OnCombatStart(Unit unit)
         {
-            foreach (var effect in effects)
-            {
-                effect.ApplyOnCombatStart(unit);
-            }
         }
 
         /// <summary>
-        /// Apply relic effects when combat ends
+        /// Called when combat ends.
         /// </summary>
         public virtual void OnCombatEnd(Unit unit)
         {
-            foreach (var effect in effects)
-            {
-                effect.ApplyOnCombatEnd(unit);
-            }
         }
 
         /// <summary>
-        /// Apply passive relic effects
+        /// Apply passive effects to a unit.
         /// </summary>
         public virtual void ApplyPassiveEffects(Unit unit)
         {
-            foreach (var effect in effects)
-            {
-                effect.ApplyPassive(unit);
-            }
         }
     }
 
-    public enum Rarity
+    /// <summary>
+    /// Relic rarity levels.
+    /// </summary>
+    public enum RelicRarity
     {
         Common,
         Uncommon,

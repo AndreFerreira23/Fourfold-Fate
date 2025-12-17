@@ -4,82 +4,80 @@ namespace FourfoldFate.Core
 {
     /// <summary>
     /// Base ability class for unit abilities.
-    /// Handles ability execution and cooldowns.
     /// </summary>
     public class Ability : MonoBehaviour
     {
         [Header("Ability Data")]
-        [SerializeField] private AbilityData abilityData;
-        
-        private float cooldownTimer = 0f;
-        private bool isOnCooldown = false;
+        public string abilityId;
+        public string abilityName;
+        public string description;
+        public AbilityType abilityType;
+        public float manaCost;
+        public float cooldown;
+        public float damage;
+        public float healAmount;
+        public float range;
 
-        public AbilityData Data => abilityData;
-        public bool IsOnCooldown => isOnCooldown;
-        public float CooldownRemaining => cooldownTimer;
+        private float lastUsedTime = 0f;
 
+        /// <summary>
+        /// Initialize ability from AbilityData.
+        /// </summary>
         public void Initialize(AbilityData data)
         {
-            abilityData = data;
-            cooldownTimer = 0f;
-            isOnCooldown = false;
+            abilityId = data.abilityId;
+            abilityName = data.abilityName;
+            description = data.description;
+            abilityType = data.abilityType;
+            manaCost = data.manaCost;
+            cooldown = data.cooldown;
+            damage = data.damage;
+            healAmount = data.healAmount;
+            range = data.range;
         }
 
-        private void Update()
+        /// <summary>
+        /// Check if ability is on cooldown.
+        /// </summary>
+        public bool IsOnCooldown()
         {
-            if (isOnCooldown)
-            {
-                cooldownTimer -= Time.deltaTime;
-                if (cooldownTimer <= 0f)
-                {
-                    isOnCooldown = false;
-                }
-            }
+            return Time.time - lastUsedTime < cooldown;
         }
 
-        public bool Use(Unit caster, Unit target)
+        /// <summary>
+        /// Use the ability on a target.
+        /// </summary>
+        public virtual void Use(Unit caster, Unit target = null)
         {
-            if (isOnCooldown) return false;
-            if (caster.CurrentMana < abilityData.ManaCost) return false;
+            lastUsedTime = Time.time;
 
-            // Consume mana
-            // Note: This would need to be implemented in Unit class
-            // caster.ConsumeMana(abilityData.ManaCost);
-
-            // Execute ability effect
-            ExecuteAbility(caster, target);
-
-            // Start cooldown
-            cooldownTimer = abilityData.Cooldown;
-            isOnCooldown = true;
-
-            return true;
-        }
-
-        protected virtual void ExecuteAbility(Unit caster, Unit target)
-        {
-            switch (abilityData.AbilityType)
+            switch (abilityType)
             {
                 case AbilityType.Damage:
                     if (target != null)
-                        target.TakeDamage(abilityData.Damage);
+                    {
+                        target.TakeDamage(damage, caster);
+                    }
                     break;
+
                 case AbilityType.Heal:
-                    if (caster != null)
-                        caster.Heal(abilityData.HealAmount);
+                    if (target != null)
+                    {
+                        target.Heal(healAmount);
+                    }
+                    else
+                    {
+                        caster.Heal(healAmount);
+                    }
                     break;
+
                 case AbilityType.Buff:
-                    // Apply buff logic here
-                    break;
                 case AbilityType.Debuff:
-                    // Apply debuff logic here
+                case AbilityType.Utility:
+                    // Implement buff/debuff/utility effects
                     break;
             }
-
-            OnAbilityUsed?.Invoke(caster, target);
         }
-
-        public System.Action<Unit, Unit> OnAbilityUsed;
     }
 }
 

@@ -163,9 +163,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51b2d14a53136c34da554a7180f3e513, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.Roguelike.EncounterManager
-  encounterPool: []
-  enemyPrefab: {fileID: 5270865967364977491, guid: 3fb9eeb87a0625e46b2622f342f4a511, type: 3}
-  enemySpawnPoints: []
 --- !u!1 &197652322
 GameObject:
   m_ObjectHideFlags: 0
@@ -210,15 +207,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: abc895993d4de8244b8cf483018d6f23, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.GameManager
-  agentManager: {fileID: 0}
+  gameDataManager: {fileID: 0}
+  balanceManager: {fileID: 0}
   runManager: {fileID: 0}
-  battleManager: {fileID: 0}
   partyManager: {fileID: 0}
+  relicManager: {fileID: 0}
   uiManager: {fileID: 0}
-  dataManager: {fileID: 0}
-  currentState: 0
-  unitPrefab: {fileID: 668016878040665059, guid: a1b258844928f29459cf1d6982ebc7bc, type: 3}
-  startingCharacterId: guardian_shield
 --- !u!1 &200194938
 GameObject:
   m_ObjectHideFlags: 0
@@ -263,11 +257,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3be7fbbb200417748a29d0dafb3f6f61, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.Party.PartyManager
-  maxPartySize: 4
   partyMembers: []
-  unlockLevels: 01000000050000000a0000000f000000
-  currentUnlockedSlots: 1
-  currentLevel: 1
+  maxPartySize: 4
+  partyUnlockLevel1: 1
+  partyUnlockLevel5: 5
+  partyUnlockLevel10: 10
+  partyUnlockLevel15: 15
 --- !u!1 &224509448
 GameObject:
   m_ObjectHideFlags: 0
@@ -483,55 +478,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4ad7ded4e8a90d408f59fdf1e556792, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.Balance.BalanceManager
-  balanceConfig:
-    scalingFactor: 1.15
-    damageFormula: Flat Reduction (Damage - Armor)
-    attackSpeedMode: Interval (Seconds per Attack)
-    tankBaseline:
-      description: High survivability, slow attacks. Vulnerable to burst, strong
-        against attrition.
-      maxHealth: 250
-      maxMana: 50
-      attackDamage: 12
-      attackSpeed: 1.5
-      armor: 8
-      magicResist: 5
-      movementSpeed: 2.5
-      attackRange: 1.2
-      role: 0
-    fighterBaseline:
-      description: Balanced stats. Sustained damage output.
-      maxHealth: 180
-      maxMana: 60
-      attackDamage: 18
-      attackSpeed: 1.1
-      armor: 4
-      magicResist: 3
-      movementSpeed: 3.5
-      attackRange: 1.5
-      role: 0
-    assassinBaseline:
-      description: High burst damage, very fast attacks, fragile.
-      maxHealth: 120
-      maxMana: 80
-      attackDamage: 22
-      attackSpeed: 0.7
-      armor: 1
-      magicResist: 2
-      movementSpeed: 4.5
-      attackRange: 1.2
-      role: 1
-    mageBaseline:
-      description: Ranged, high mana pool, relies on abilities.
-      maxHealth: 100
-      maxMana: 150
-      attackDamage: 10
-      attackSpeed: 1.3
-      armor: 0
-      magicResist: 10
-      movementSpeed: 3
-      attackRange: 4.5
-      role: 2
+  config:
+    tankBaseHealth: 250
+    tankBaseArmor: 8
+    tankBaseDamage: 12
+    tankBaseAttackSpeed: 1.5
+    fighterBaseHealth: 180
+    fighterBaseArmor: 4
+    fighterBaseDamage: 18
+    fighterBaseAttackSpeed: 1.1
+    mageBaseHealth: 100
+    mageBaseArmor: 0
+    mageBaseDamage: 10
+    mageBaseAttackSpeed: 1.3
+    mageBaseMagicResist: 10
+    assassinBaseHealth: 120
+    assassinBaseArmor: 1
+    assassinBaseDamage: 22
+    assassinBaseAttackSpeed: 0.7
+    levelScalingMultiplier: 1.05
 --- !u!4 &811738695
 Transform:
   m_ObjectHideFlags: 0
@@ -602,10 +567,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7aac7cc63ff3c93468efb59b5b658253, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.Core.BattleManager
-  playerTeam: []
-  enemyTeam: []
-  isBattleActive: 0
-  battleTimer: 0
+  partyUnits: []
+  enemyUnits: []
+  isCombatActive: 0
+  isPlayerTurn: 1
+  currentActor: {fileID: 0}
+  currentTurnIndex: 0
 --- !u!1 &1198760943
 GameObject:
   m_ObjectHideFlags: 0
@@ -656,7 +623,52 @@ MonoBehaviour:
   levelUpUI: {fileID: 0}
   relicSelectionUI: {fileID: 0}
   runProgressionUI: {fileID: 0}
-  currentState: 0
+--- !u!1 &1209614010
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1209614011}
+  - component: {fileID: 1209614012}
+  m_Layer: 0
+  m_Name: Setup
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1209614011
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1209614010}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1209614012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1209614010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd3b7a06838c9d844aebefc4bea08940, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.Setup.AutoSceneSetup
+  setupOnStart: 1
+  showDebugMessages: 1
 --- !u!1 &1352012655
 GameObject:
   m_ObjectHideFlags: 0
@@ -701,21 +713,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29d1378be96d8b849a929ea7fe551c43, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.Animation.AttackAnimationSystem
-  attackDuration: 0.5
-  damageNumberDuration: 1
-  damageNumberPrefab: {fileID: 0}
-  hitEffectPrefab: {fileID: 0}
-  guardEffectPrefab: {fileID: 0}
-  momentumEffectPrefab: {fileID: 0}
-  surgeEffectPrefab: {fileID: 0}
-  opportunityEffectPrefab: {fileID: 0}
-  fireEffectPrefab: {fileID: 0}
-  natureEffectPrefab: {fileID: 0}
-  shadowEffectPrefab: {fileID: 0}
-  holyEffectPrefab: {fileID: 0}
-  arcaneEffectPrefab: {fileID: 0}
-  steelEffectPrefab: {fileID: 0}
-  stormEffectPrefab: {fileID: 0}
 --- !u!1 &1469150972
 GameObject:
   m_ObjectHideFlags: 0
@@ -727,6 +724,7 @@ GameObject:
   - component: {fileID: 1469150975}
   - component: {fileID: 1469150974}
   - component: {fileID: 1469150973}
+  - component: {fileID: 1469150976}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -808,6 +806,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1469150976
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1469150972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
 --- !u!224 &1671874158 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 501187391114452246, guid: e61b8004e7f13da47af8fbf2c0c68937, type: 3}
@@ -858,8 +900,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.Relics.RelicManager
   collectedRelics: []
-  maxRelics: 30
-  availableRelics: []
 --- !u!1 &1903568636
 GameObject:
   m_ObjectHideFlags: 0
@@ -907,7 +947,6 @@ MonoBehaviour:
   unlockedCharacters: []
   unlockedRelics: []
   unlockedSynergyTags: []
-  unlockedDifficultyModifiers: []
   metaCurrency: 0
 --- !u!1 &1910982454
 GameObject:
@@ -953,9 +992,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d44d523101fd7e44ba14a86b5fcaec4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.Agents.AgentManager
-  storyAgent: {fileID: 0}
-  balanceAgent: {fileID: 0}
-  codeAgent: {fileID: 0}
 --- !u!1 &1963769810
 GameObject:
   m_ObjectHideFlags: 0
@@ -1003,7 +1039,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FourfoldFate.Roguelike.RunManager
   currentLevel: 1
   isRunActive: 0
-  currentRunData: {fileID: 0}
+  encounterManager: {fileID: 0}
+  progressionManager: {fileID: 0}
+  partyManager: {fileID: 0}
 --- !u!1001 &1965535341
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1114,3 +1152,4 @@ SceneRoots:
   - {fileID: 806702940}
   - {fileID: 224509450}
   - {fileID: 811738695}
+  - {fileID: 1209614011}
